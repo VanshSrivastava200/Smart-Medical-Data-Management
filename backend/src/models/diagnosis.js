@@ -1,0 +1,61 @@
+import mongoose from "mongoose";
+const diagnosisSchema=new mongoose.Schema({
+    patientid:{
+        type:String,
+        required:true,
+    },
+    doctorid:{
+        type:String,
+        required:true,
+    },
+    facilityid:{
+        type:String
+    },
+    conditions:[{
+        type:String,
+        required:true,
+    }],
+    reason:{
+        type:String,
+        required:true,
+    },
+    precaution:{
+        type:String,
+        required:true,
+    },
+    medicines:[{
+        name:{
+            type:String,
+            required:true,
+        },
+        dosage:{
+            type:String,
+            required:true,
+        },
+        frequency:{
+            type:String,
+            required:true,
+        },
+        duration:{
+            type:String,
+            required:true,
+        },
+        purchased:{
+            type:Boolean,
+            default:false
+        }
+    }],
+    tests:[{
+        type:{
+            type:String,
+            required:true,
+        },
+        testid:{
+            type:String,
+        },
+
+    }]
+},{timestamps:true})
+
+const Diagnosis=mongoose.model('Diagnosis',diagnosisSchema);
+export default Diagnosis;
