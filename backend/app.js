@@ -6,6 +6,7 @@ import profileRoutes from "./src/routes/profilecomplete.routes.js"
 import doctorRoutes from "./src/routes/doctor.routes.js"
 import patientRoutes from "./src/routes/patient.routes.js"
 import diagnosisRoutes from "./src/routes/diagnosis.routes.js"
+import labRoutes from "./src/routes/lab.routes.js"
 
 const app=express()
 
@@ -20,5 +21,6 @@ app.use("/profilecomplete",profileRoutes)
 app.use("/doctor",doctorRoutes)
 app.use("/patient",patientRoutes)
 app.use("/diagnosis",diagnosisRoutes)
+app.use("/lab",labRoutes)
 
 export default app;

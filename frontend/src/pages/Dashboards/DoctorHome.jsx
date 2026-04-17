@@ -12,7 +12,7 @@ const DoctorHome = () => {
     // New Diagnosis State
     const [showNewDiagnosis, setShowNewDiagnosis] = useState(false);
     const [patientId, setPatientId] = useState("");
-    const [patientName, setPatientName] = useState("");
+    const [patientData, setPatientData] = useState(null);
     const [patientVerified, setPatientVerified] = useState(false);
     const [verifying, setVerifying] = useState(false);
     
@@ -84,7 +84,7 @@ const DoctorHome = () => {
             
             if (response.data.exists) {
                 setPatientVerified(true);
-                setPatientName(response.data.name || patientId);
+                setPatientData(response.data.patient);
                 setNewDiagnosis(prev => ({ ...prev, patientid: patientId }));
             } else {
                 alert("Patient not found");
@@ -193,7 +193,7 @@ const DoctorHome = () => {
                 setShowNewDiagnosis(false);
                 setPatientVerified(false);
                 setPatientId("");
-                setPatientName("");
+                setPatientData(null);
                 setNewDiagnosis({
                     patientid: "",
                     facilityid: "",
@@ -313,26 +313,76 @@ const DoctorHome = () => {
                         ) : (
                             <>
                                 {/* Verified Patient Banner */}
-                                <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                                            <i className="fas fa-check-circle text-green-600"></i>
+                                <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                                <i className="fas fa-check-circle text-green-600"></i>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-600">Patient Verified</p>
+                                                <p className="font-semibold text-gray-800">ID: {patientId}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-sm text-gray-600">Patient Verified</p>
-                                            <p className="font-semibold text-gray-800">ID: {patientId} {patientName && `• ${patientName}`}</p>
-                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setPatientVerified(false);
+                                                setPatientId("");
+                                                setPatientData(null);
+                                            }}
+                                            className="text-gray-500 hover:text-gray-700"
+                                        >
+                                            <i className="fas fa-times"></i>
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => {
-                                            setPatientVerified(false);
-                                            setPatientId("");
-                                            setPatientName("");
-                                        }}
-                                        className="text-gray-500 hover:text-gray-700"
-                                    >
-                                        <i className="fas fa-times"></i>
-                                    </button>
+
+                                    {/* Patient Details Card */}
+                                    {patientData && (
+                                        <div className="bg-white rounded-lg p-4 mt-2">
+                                            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                                <i className="fas fa-user-circle text-teal-600"></i>
+                                                Patient Information
+                                            </h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                <div>
+                                                    <p className="text-xs text-gray-500">User ID</p>
+                                                    <p className="text-sm font-medium text-gray-800">{patientData.userid}</p>
+                                                </div>
+                                                {patientData.age && (
+                                                    <div>
+                                                        <p className="text-xs text-gray-500">Age</p>
+                                                        <p className="text-sm font-medium text-gray-800">{patientData.age}</p>
+                                                    </div>
+                                                )}
+                                                {patientData.gender && (
+                                                    <div>
+                                                        <p className="text-xs text-gray-500">Gender</p>
+                                                        <p className="text-sm font-medium text-gray-800">{patientData.gender}</p>
+                                                    </div>
+                                                )}
+                                                {patientData.bloodg && (
+                                                    <div>
+                                                        <p className="text-xs text-gray-500">Blood Group</p>
+                                                        <p className="text-sm font-medium text-gray-800">{patientData.bloodg}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            
+                                            {patientData.allergies && patientData.allergies.length > 0 && (
+                                                <div className="mt-3">
+                                                    <p className="text-xs text-gray-500 mb-1">Known Allergies</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {patientData.allergies.map((allergy, idx) => (
+                                                            <span key={idx} className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">
+                                                                <i className="fas fa-allergies mr-1"></i>
+                                                                {allergy}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Facility Selection */}
@@ -526,7 +576,7 @@ const DoctorHome = () => {
                                             setShowNewDiagnosis(false);
                                             setPatientVerified(false);
                                             setPatientId("");
-                                            setPatientName("");
+                                            setPatientData(null);
                                         }}
                                         className="px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all"
                                     >

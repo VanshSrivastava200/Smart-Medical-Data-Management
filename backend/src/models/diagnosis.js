@@ -53,6 +53,18 @@ const diagnosisSchema=new mongoose.Schema({
         testid:{
             type:String,
         },
+        result:{
+            type:String,
+            default:null
+        },
+        notes:{
+            type:String,
+            default:null
+        },
+        labid:{
+            type:String,
+            defaut:null
+        }
 
     }]
 },{timestamps:true})
