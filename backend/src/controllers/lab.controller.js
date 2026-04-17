@@ -11,8 +11,8 @@ export const labprofile = async (req, res) => {
                 userid: curruser,
                 address
             })
-            res.status(200).json({ success: true })
             await User.updateOne({ userid: curruser }, { profileCompleted: true })
+            res.status(200).json({ success: true })
 
         } catch (err) {
             res.status(500).json({ message: err.message })
@@ -24,8 +24,13 @@ export const labprofile = async (req, res) => {
 }
 
 export const getLab = async (req, res) => {
-
     try {
+        console.log("req.user:", req.user); // Debug log
+        
+        if (!req.user) {
+            return res.status(401).json({ message: "Not authenticated" });
+        }
+        
         const currLab = await Lab.findOne({ userid: req.user.userid })
 
         if (!currLab) {
@@ -54,11 +59,35 @@ export const uploadResults = async (req, res) => {
             }
         );
 
-        res.status(200).json({message:"Upoaded successfully"})
-    
+        res.status(200).json({ success: true, message: "Upoaded successfully" })
+
 
     } catch (err) {
         console.log(err.message)
         res.status(500).json({ message: "Failed to upload test" })
+    }
+}
+
+export const getHistory = async (req, res) => {
+    try {
+        const diagnoses = await Diagnosis.find({ "tests.labid": req.user.userid })
+        const tests = []
+        diagnoses.forEach(diagnosis => {
+            diagnosis.tests.forEach(test => {
+                tests.push({
+                    diagnosisid: diagnosis._id,
+                    patientid: diagnosis.patientid,
+                    doctorid: diagnosis.doctorid,
+                    testType: test.type,
+                    testid: test.testid,
+                    result: test.result,
+                    notes: test.notes,
+                    completedAt: test.completedAt
+                })
+            })
+        })
+        res.status(200).json(tests)
+    } catch (err) {
+        res.status(500).json({ message: err.message })
     }
 }

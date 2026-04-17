@@ -2,20 +2,19 @@ import { useState } from "react";
 import axios from "axios"
 import { useEffect } from "react";
 
-const LabHome = () => {
+const LabDashboard = () => {
     const [labdetails, setLabdetails] = useState(null);
-    const [diagnosisId, setDiagnosisId] = useState("");
-    const [pendingTests, setPendingTests] = useState([]);
+    const [testId, setTestId] = useState("");
+    const [testData, setTestData] = useState(null);
     const [completedHistory, setCompletedHistory] = useState([]);
-    const [diagnosisInfo, setDiagnosisInfo] = useState(null);
     const [searching, setSearching] = useState(false);
     const [uploading, setUploading] = useState(false);
-    const [selectedTest, setSelectedTest] = useState(null);
     const [expandedTest, setExpandedTest] = useState(null);
+    const [activeTab, setActiveTab] = useState("search");
     
     // Test Results State
     const [testResults, setTestResults] = useState({
-        result: "",  // This will store file URL or text result
+        result: "",
         notes: ""
     });
 
@@ -42,33 +41,36 @@ const LabHome = () => {
         getLabDetails();
     }, []);
 
-    // Search for diagnosis by ID
-    const searchDiagnosis = async () => {
-        if (!diagnosisId.trim()) {
-            alert("Please enter Diagnosis ID");
+    // Search for specific test by its _id
+    const searchTest = async () => {
+        if (!testId.trim()) {
+            alert("Please enter Test ID");
             return;
         }
 
         setSearching(true);
         try {
-            const response = await axios.get(`http://localhost:3000/lab/getdiagnosis`, {
-                params: { diagnosisId: diagnosisId },
+            const response = await axios.get(`http://localhost:3000/diagnosis/gettest`, {
+                params: { testId: testId },
                 withCredentials: true
             });
 
-            if (response.data && response.data.length > 0) {
-                setPendingTests(response.data);
-                setDiagnosisInfo({ id: diagnosisId });
+            console.log("Response:", response.data);
+
+            if (response.data.success) {
+                setTestData(response.data.test);
+                setTestResults({
+                    result: response.data.test?.result || "",
+                    notes: response.data.test?.notes || ""
+                });
             } else {
-                alert("No pending tests found for this diagnosis");
-                setPendingTests([]);
-                setDiagnosisInfo(null);
+                alert("Test not found");
+                setTestData(null);
             }
         } catch (error) {
-            console.error("Error fetching diagnosis:", error);
-            alert(error.response?.data?.message || "Error fetching diagnosis");
-            setPendingTests([]);
-            setDiagnosisInfo(null);
+            console.error("Error fetching test:", error);
+            alert(error.response?.data?.message || "Error fetching test");
+            setTestData(null);
         } finally {
             setSearching(false);
         }
@@ -80,39 +82,28 @@ const LabHome = () => {
         setTestResults(prev => ({ ...prev, [name]: value }));
     };
 
-    // Upload results for a specific test
-    const uploadTestResult = async (test) => {
+    // Upload results for the test
+    const uploadTestResult = async () => {
         if (!testResults.result) {
-            alert("Please enter test results or file URL");
+            alert("Please enter test results");
             return;
         }
 
         setUploading(true);
         try {
             const uploadData = {
-                diagnosisId: diagnosisInfo.id,
-                testid: test._id || test.testid,
-                result: testResults.result,  // This can be text results or file URL
+                testId: testData._id,
+                result: testResults.result,
                 notes: testResults.notes,
-                labid: labdetails?.userid  // Send lab ID who is completing the test
+                labid: labdetails?.userid
             };
 
-            const response = await axios.post('http://localhost:3000/lab/uploadresults', uploadData, {
+            const response = await axios.post('http://localhost:3000/lab/upload', uploadData, {
                 withCredentials: true
             });
 
             if (response.data.success) {
-                alert(`Results uploaded for ${test.type} successfully!`);
-                
-                // Refresh the pending tests list
-                const refreshResponse = await axios.get(`http://localhost:3000/lab/getdiagnosis`, {
-                    params: { diagnosisId: diagnosisId },
-                    withCredentials: true
-                });
-                
-                if (refreshResponse.data) {
-                    setPendingTests(refreshResponse.data);
-                }
+                alert(`Results uploaded for ${testData.type} successfully!`);
                 
                 // Refresh completed history
                 const historyRes = await axios.get('http://localhost:3000/lab/gethistory', {
@@ -120,16 +111,11 @@ const LabHome = () => {
                 });
                 setCompletedHistory(historyRes.data);
                 
-                setSelectedTest(null);
+                // Clear the current test
+                setTestData(null);
+                setTestId("");
                 setTestResults({ result: "", notes: "" });
-
-                // If no more pending tests, clear the search
-                if (refreshResponse.data.length === 0) {
-                    alert("All tests have been completed for this diagnosis!");
-                    setPendingTests([]);
-                    setDiagnosisInfo(null);
-                    setDiagnosisId("");
-                }
+                setActiveTab("history");
             } else {
                 alert(response.data.message || "Error uploading results");
             }
@@ -222,184 +208,88 @@ const LabHome = () => {
                     </div>
                 )}
 
-                {/* Search Diagnosis Section */}
-                <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
-                    <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
-                        <i className="fas fa-search text-blue-600"></i>
-                        Search Diagnosis
-                    </h2>
-                    
-                    <div className="flex gap-3">
-                        <input
-                            type="text"
-                            value={diagnosisId}
-                            onChange={(e) => setDiagnosisId(e.target.value)}
-                            placeholder="Enter Diagnosis ID"
-                            className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none"
-                        />
-                        <button
-                            onClick={searchDiagnosis}
-                            disabled={searching}
-                            className="px-6 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-xl font-semibold hover:opacity-90 transition-all disabled:opacity-50"
-                        >
-                            {searching ? "Searching..." : "Search"}
-                        </button>
-                    </div>
+                {/* Tabs */}
+                <div className="flex gap-4 mb-6 border-b border-gray-200">
+                    <button
+                        onClick={() => setActiveTab("search")}
+                        className={`pb-3 px-4 font-semibold transition-colors ${
+                            activeTab === "search" 
+                                ? "text-teal-600 border-b-2 border-teal-600" 
+                                : "text-gray-500 hover:text-gray-700"
+                        }`}
+                    >
+                        <i className="fas fa-search mr-2"></i>
+                        Upload Results
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("history")}
+                        className={`pb-3 px-4 font-semibold transition-colors ${
+                            activeTab === "history" 
+                                ? "text-teal-600 border-b-2 border-teal-600" 
+                                : "text-gray-500 hover:text-gray-700"
+                        }`}
+                    >
+                        <i className="fas fa-history mr-2"></i>
+                        History ({completedHistory.length})
+                    </button>
                 </div>
 
-                {/* Pending Tests Section */}
-                {pendingTests.length > 0 && (
-                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
-                            <i className="fas fa-clock text-yellow-600"></i>
-                            Pending Tests ({pendingTests.length})
-                        </h2>
-                        
-                        <div className="space-y-4">
-                            {pendingTests.map((test, index) => (
-                                <div key={index} className="border border-gray-200 rounded-xl overflow-hidden">
-                                    <div className="bg-gradient-to-r from-gray-50 to-white p-4 flex justify-between items-center">
-                                        <div>
-                                            <p className="font-semibold text-gray-800">{test.type}</p>
-                                            {test.testid && (
-                                                <p className="text-sm text-gray-500">Test ID: {test.testid}</p>
-                                            )}
-                                        </div>
-                                        <button
-                                            onClick={() => setSelectedTest(test)}
-                                            className="px-4 py-2 bg-gradient-to-r from-amber-600 to-yellow-600 text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-all"
-                                        >
-                                            Upload Results
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* No Pending Tests Message */}
-                {pendingTests.length === 0 && diagnosisInfo && (
-                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-12 text-center mb-8">
-                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <i className="fas fa-check-circle text-3xl text-green-600"></i>
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-800 mb-2">No Pending Tests</h3>
-                        <p className="text-gray-600">All tests for this diagnosis have been completed</p>
-                    </div>
-                )}
-
-                {/* Completed Tests History Section */}
-                <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6">
-                    <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
-                        <i className="fas fa-history text-green-600"></i>
-                        Completed Tests History ({completedHistory.length})
-                    </h2>
-                    
-                    {completedHistory.length > 0 ? (
-                        <div className="space-y-4">
-                            {completedHistory.map((item, index) => (
-                                <div key={index} className="border border-gray-200 rounded-xl overflow-hidden">
-                                    <div 
-                                        className="bg-gradient-to-r from-gray-50 to-white p-4 cursor-pointer hover:bg-gray-100 transition-colors flex justify-between items-center"
-                                        onClick={() => toggleHistoryTest(index)}
+                {/* Search Tab */}
+                {activeTab === "search" && (
+                    <>
+                        {/* Search Test Section */}
+                        {!testData && (
+                            <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
+                                <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
+                                    <i className="fas fa-search text-blue-600"></i>
+                                    Search Test by ID
+                                </h2>
+                                
+                                <div className="flex gap-3">
+                                    <input
+                                        type="text"
+                                        value={testId}
+                                        onChange={(e) => setTestId(e.target.value)}
+                                        placeholder="Enter Test ID (MongoDB _id)"
+                                        className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none"
+                                    />
+                                    <button
+                                        onClick={searchTest}
+                                        disabled={searching}
+                                        className="px-6 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-xl font-semibold hover:opacity-90 transition-all disabled:opacity-50"
                                     >
-                                        <div className="flex items-center gap-4">
-                                            <i className={`fas fa-chevron-${expandedTest === index ? 'down' : 'right'} text-gray-400`}></i>
-                                            <div>
-                                                <p className="font-semibold text-gray-800">Patient: {item.patientid}</p>
-                                                <p className="text-sm text-gray-600">Test: {item.testType}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                                                Completed
-                                            </span>
-                                            <span className="text-xs text-gray-500">
-                                                {new Date(item.completedAt).toLocaleDateString()}
-                                            </span>
-                                        </div>
+                                        {searching ? "Searching..." : "Search"}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-3">
+                                    Enter the Test ID provided by the doctor or patient
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Test Details & Upload Section */}
+                        {testData && !testData.result && (
+                            <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6">
+                                <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
+                                    <i className="fas fa-vial text-amber-600"></i>
+                                    Upload Results for: {testData.type}
+                                </h2>
+
+                                {/* Test Information */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
+                                    <div>
+                                        <label className="text-xs text-gray-500">Test Type</label>
+                                        <p className="font-medium text-gray-800">{testData.type}</p>
                                     </div>
-                                    
-                                    {expandedTest === index && (
-                                        <div className="p-4 bg-gray-50 border-t border-gray-200">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                                                <div>
-                                                    <p className="text-xs text-gray-500">Diagnosis ID</p>
-                                                    <p className="text-sm font-medium text-gray-800">{item.diagnosisId}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-500">Doctor ID</p>
-                                                    <p className="text-sm font-medium text-gray-800">{item.doctorid}</p>
-                                                </div>
-                                                {item.testid && (
-                                                    <div>
-                                                        <p className="text-xs text-gray-500">Test ID</p>
-                                                        <p className="text-sm font-medium text-gray-800">{item.testid}</p>
-                                                    </div>
-                                                )}
-                                                <div>
-                                                    <p className="text-xs text-gray-500">Completed By</p>
-                                                    <p className="text-sm font-medium text-gray-800">{item.labid || 'Lab'}</p>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="mt-3">
-                                                <p className="text-xs text-gray-500 mb-1">Test Results / Report</p>
-                                                <div className="bg-white rounded-lg p-3">
-                                                    {item.result && (
-                                                        <div className="mb-2">
-                                                            {item.result.startsWith('http') ? (
-                                                                <a 
-                                                                    href={item.result} 
-                                                                    target="_blank" 
-                                                                    rel="noopener noreferrer"
-                                                                    className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-700"
-                                                                >
-                                                                    <i className="fas fa-file-pdf"></i>
-                                                                    View Report
-                                                                </a>
-                                                            ) : (
-                                                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{item.result}</p>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    {item.notes && (
-                                                        <div className="mt-2 pt-2 border-t border-gray-200">
-                                                            <p className="text-xs text-gray-500 mb-1">Additional Notes:</p>
-                                                            <p className="text-sm text-gray-600">{item.notes}</p>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                                    {testData.testid && (
+                                        <div>
+                                            <label className="text-xs text-gray-500">Test ID</label>
+                                            <p className="font-medium text-gray-800">{testData.testid}</p>
                                         </div>
                                     )}
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-12">
-                            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <i className="fas fa-flask text-3xl text-gray-400"></i>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-800 mb-2">No Completed Tests Yet</h3>
-                            <p className="text-gray-600">Uploaded test results will appear here</p>
-                        </div>
-                    )}
-                </div>
 
-                {/* Upload Results Modal */}
-                {selectedTest && (
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl max-w-2xl w-full">
-                            <div className="bg-gradient-to-r from-amber-600 to-yellow-600 rounded-t-2xl px-6 py-4">
-                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <i className="fas fa-flask"></i>
-                                    Upload Results: {selectedTest.type}
-                                </h2>
-                            </div>
-                            
-                            <div className="p-6">
+                                {/* Upload Form */}
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -432,29 +322,148 @@ const LabHome = () => {
                                             placeholder="Any additional notes or observations..."
                                         />
                                     </div>
-                                </div>
 
-                                {/* Action Buttons */}
-                                <div className="flex justify-end gap-3 mt-6">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedTest(null);
-                                            setTestResults({ result: "", notes: "" });
-                                        }}
-                                        className="px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={() => uploadTestResult(selectedTest)}
-                                        disabled={uploading}
-                                        className="px-6 py-3 bg-gradient-to-r from-amber-600 to-yellow-600 text-white rounded-xl font-semibold hover:opacity-90 transition-all disabled:opacity-50"
-                                    >
-                                        {uploading ? "Uploading..." : "Upload Results"}
-                                    </button>
+                                    {/* Action Buttons */}
+                                    <div className="flex justify-end gap-3 mt-4">
+                                        <button
+                                            onClick={() => {
+                                                setTestData(null);
+                                                setTestId("");
+                                                setTestResults({ result: "", notes: "" });
+                                            }}
+                                            className="px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={uploadTestResult}
+                                            disabled={uploading}
+                                            className="px-6 py-3 bg-gradient-to-r from-amber-600 to-yellow-600 text-white rounded-xl font-semibold hover:opacity-90 transition-all disabled:opacity-50"
+                                        >
+                                            {uploading ? "Uploading..." : "Upload Results"}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* Already Completed Message */}
+                        {testData && testData.result && (
+                            <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-12 text-center">
+                                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i className="fas fa-check-circle text-3xl text-green-600"></i>
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Test Already Completed</h3>
+                                <p className="text-gray-600">This test has already been processed</p>
+                                <button
+                                    onClick={() => {
+                                        setTestData(null);
+                                        setTestId("");
+                                        setTestResults({ result: "", notes: "" });
+                                    }}
+                                    className="mt-4 px-6 py-2 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg font-semibold hover:opacity-90 transition-all"
+                                >
+                                    Search Another Test
+                                </button>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {/* History Tab */}
+                {activeTab === "history" && (
+                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6">
+                        <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
+                            <i className="fas fa-history text-green-600"></i>
+                            Completed Tests History ({completedHistory.length})
+                        </h2>
+                        
+                        {completedHistory.length > 0 ? (
+                            <div className="space-y-4">
+                                {completedHistory.map((item, index) => (
+                                    <div key={index} className="border border-gray-200 rounded-xl overflow-hidden">
+                                        <div 
+                                            className="bg-gradient-to-r from-gray-50 to-white p-4 cursor-pointer hover:bg-gray-100 transition-colors flex justify-between items-center"
+                                            onClick={() => toggleHistoryTest(index)}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <i className={`fas fa-chevron-${expandedTest === index ? 'down' : 'right'} text-gray-400`}></i>
+                                                <div>
+                                                    <p className="font-semibold text-gray-800">Patient: {item.patientid}</p>
+                                                    <p className="text-sm text-gray-600">Test: {item.testType}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                                    Completed
+                                                </span>
+                                                <span className="text-xs text-gray-500">
+                                                    {item.completedAt ? new Date(item.completedAt).toLocaleDateString() : 'N/A'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        {expandedTest === index && (
+                                            <div className="p-4 bg-gray-50 border-t border-gray-200">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                                    <div>
+                                                        <p className="text-xs text-gray-500">Diagnosis ID</p>
+                                                        <p className="text-sm font-medium text-gray-800">{item.diagnosisid}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-500">Doctor ID</p>
+                                                        <p className="text-sm font-medium text-gray-800">{item.doctorid}</p>
+                                                    </div>
+                                                    {item.testid && (
+                                                        <div>
+                                                            <p className="text-xs text-gray-500">Test ID</p>
+                                                            <p className="text-sm font-medium text-gray-800">{item.testid}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                
+                                                <div className="mt-3">
+                                                    <p className="text-xs text-gray-500 mb-1">Test Results / Report</p>
+                                                    <div className="bg-white rounded-lg p-3">
+                                                        {item.result && (
+                                                            <div className="mb-2">
+                                                                {item.result.startsWith('http') ? (
+                                                                    <a 
+                                                                        href={item.result} 
+                                                                        target="_blank" 
+                                                                        rel="noopener noreferrer"
+                                                                        className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-700"
+                                                                    >
+                                                                        <i className="fas fa-file-pdf"></i>
+                                                                        View Report
+                                                                    </a>
+                                                                ) : (
+                                                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{item.result}</p>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {item.notes && (
+                                                            <div className="mt-2 pt-2 border-t border-gray-200">
+                                                                <p className="text-xs text-gray-500 mb-1">Additional Notes:</p>
+                                                                <p className="text-sm text-gray-600">{item.notes}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12">
+                                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i className="fas fa-flask text-3xl text-gray-400"></i>
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-800 mb-2">No Completed Tests Yet</h3>
+                                <p className="text-gray-600">Uploaded test results will appear here</p>
+                            </div>
+                        )}
                     </div>
                 )}
             </main>
@@ -462,4 +471,4 @@ const LabHome = () => {
     );
 };
 
-export default LabHome;
+export default LabDashboard;

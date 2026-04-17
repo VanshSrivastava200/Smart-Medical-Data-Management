@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile"
 import Home from "./pages/Home";
 import DoctorHome from "./pages/Dashboards/DoctorHome";
+import LabHome from "./pages/Dashboards/LabHome"
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/profile" element={<Profile />}></Route>
         <Route path="/" element={<Home />}></Route>
         <Route path="/doctordashboard" element={<DoctorHome />}></Route>
+        <Route path="/labdashboard" element={<LabHome />}></Route>
       </Routes>
     </BrowserRouter>
   );
