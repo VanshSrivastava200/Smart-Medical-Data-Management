@@ -1,5 +1,4 @@
 import Diagnosis from "../models/diagnosis.js";
-
 export const setDiagnosis = async (req, res) => {
     try {
         const { patientid, doctorid, facilityid, conditions, reason, precaution, medicines, tests } = req.body;

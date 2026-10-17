@@ -1,6 +1,6 @@
-import { useState } from "react";
-import axios from "axios"
-import { useEffect } from "react";
+
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 const DoctorHome = () => {
     const [doctordetails, setDoctordetails] = useState(null);
@@ -8,14 +8,14 @@ const DoctorHome = () => {
     const [diagnoses, setDiagnoses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedDiagnosis, setExpandedDiagnosis] = useState(null);
-    
+
     // New Diagnosis State
     const [showNewDiagnosis, setShowNewDiagnosis] = useState(false);
     const [patientId, setPatientId] = useState("");
     const [patientData, setPatientData] = useState(null);
     const [patientVerified, setPatientVerified] = useState(false);
     const [verifying, setVerifying] = useState(false);
-    
+
     // Diagnosis Form State
     const [newDiagnosis, setNewDiagnosis] = useState({
         patientid: "",
@@ -27,7 +27,6 @@ const DoctorHome = () => {
         tests: []
     });
 
-    // Form input states
     const [currentCondition, setCurrentCondition] = useState("");
     const [currentMedicine, setCurrentMedicine] = useState({
         name: "",
@@ -40,17 +39,29 @@ const DoctorHome = () => {
         testid: ""
     });
 
+    // Original API calls preserved, including their order.
     useEffect(() => {
         const getDocDetails = async () => {
             try {
-                const doctordet = await axios.get('http://localhost:3000/doctor/getdoctor', { withCredentials: true });
-                const facilitydet = await axios.get('http://localhost:3000/doctor/getfacilities', { withCredentials: true });
-                const diagnosisdet = await axios.get('http://localhost:3000/doctor/getdiagnosis', { withCredentials: true });
-                
+                const doctordet = await axios.get(
+                    "http://localhost:3000/doctor/getdoctor",
+                    { withCredentials: true }
+                );
+
+                const facilitydet = await axios.get(
+                    "http://localhost:3000/doctor/getfacilities",
+                    { withCredentials: true }
+                );
+
+                const diagnosisdet = await axios.get(
+                    "http://localhost:3000/doctor/getdiagnosis",
+                    { withCredentials: true }
+                );
+
                 setDoctordetails(doctordet.data);
                 setFacilities(facilitydet.data);
                 setDiagnoses(diagnosisdet.data);
-                
+
                 console.log("Doctor Details:", doctordet.data);
                 console.log("Facilities:", facilitydet.data);
                 console.log("Diagnoses:", diagnosisdet.data);
@@ -60,32 +71,38 @@ const DoctorHome = () => {
                 setLoading(false);
             }
         };
+
         getDocDetails();
     }, []);
 
     const toggleDiagnosis = (index) => {
-        if (expandedDiagnosis === index) {
-            setExpandedDiagnosis(null);
-        } else {
-            setExpandedDiagnosis(index);
-        }
+        setExpandedDiagnosis(
+            expandedDiagnosis === index ? null : index
+        );
     };
 
-    // Verify Patient
+    // Original patient verification request preserved.
     const verifyPatient = async () => {
         if (!patientId.trim()) return;
-        
+
         setVerifying(true);
+
         try {
-            const response = await axios.get(`http://localhost:3000/patient/verify`, {
-                params: { userid: patientId },
-                withCredentials: true
-            });
-            
+            const response = await axios.get(
+                "http://localhost:3000/patient/verify",
+                {
+                    params: { userid: patientId },
+                    withCredentials: true
+                }
+            );
+
             if (response.data.exists) {
                 setPatientVerified(true);
                 setPatientData(response.data.patient);
-                setNewDiagnosis(prev => ({ ...prev, patientid: patientId }));
+                setNewDiagnosis((prev) => ({
+                    ...prev,
+                    patientid: patientId
+                }));
             } else {
                 alert("Patient not found");
             }
@@ -97,51 +114,70 @@ const DoctorHome = () => {
         }
     };
 
-    // Add Condition
     const addCondition = () => {
         if (currentCondition.trim()) {
-            setNewDiagnosis(prev => ({
+            setNewDiagnosis((prev) => ({
                 ...prev,
-                conditions: [...prev.conditions, currentCondition.trim()]
+                conditions: [
+                    ...prev.conditions,
+                    currentCondition.trim()
+                ]
             }));
             setCurrentCondition("");
         }
     };
 
     const removeCondition = (index) => {
-        setNewDiagnosis(prev => ({
+        setNewDiagnosis((prev) => ({
             ...prev,
-            conditions: prev.conditions.filter((_, i) => i !== index)
+            conditions: prev.conditions.filter(
+                (_, i) => i !== index
+            )
         }));
     };
 
-    // Add Medicine
     const addMedicine = () => {
-        if (currentMedicine.name && currentMedicine.dosage && currentMedicine.frequency && currentMedicine.duration) {
-            setNewDiagnosis(prev => ({
+        if (
+            currentMedicine.name &&
+            currentMedicine.dosage &&
+            currentMedicine.frequency &&
+            currentMedicine.duration
+        ) {
+            setNewDiagnosis((prev) => ({
                 ...prev,
-                medicines: [...prev.medicines, { ...currentMedicine, purchased: false }]
+                medicines: [
+                    ...prev.medicines,
+                    { ...currentMedicine, purchased: false }
+                ]
             }));
-            setCurrentMedicine({ name: "", dosage: "", frequency: "", duration: "" });
+
+            setCurrentMedicine({
+                name: "",
+                dosage: "",
+                frequency: "",
+                duration: ""
+            });
         } else {
             alert("Please fill all medicine fields");
         }
     };
 
     const removeMedicine = (index) => {
-        setNewDiagnosis(prev => ({
+        setNewDiagnosis((prev) => ({
             ...prev,
-            medicines: prev.medicines.filter((_, i) => i !== index)
+            medicines: prev.medicines.filter(
+                (_, i) => i !== index
+            )
         }));
     };
 
-    // Add Test
     const addTest = () => {
         if (currentTest.type) {
-            setNewDiagnosis(prev => ({
+            setNewDiagnosis((prev) => ({
                 ...prev,
                 tests: [...prev.tests, { ...currentTest }]
             }));
+
             setCurrentTest({ type: "", testid: "" });
         } else {
             alert("Please enter test type");
@@ -149,23 +185,24 @@ const DoctorHome = () => {
     };
 
     const removeTest = (index) => {
-        setNewDiagnosis(prev => ({
+        setNewDiagnosis((prev) => ({
             ...prev,
             tests: prev.tests.filter((_, i) => i !== index)
         }));
     };
 
-    // Submit Diagnosis
+    // Original diagnosis submission and refresh requests preserved.
     const submitDiagnosis = async () => {
-        // Validate required fields
         if (!newDiagnosis.reason) {
             alert("Please enter reason for visit");
             return;
         }
+
         if (!newDiagnosis.precaution) {
             alert("Please enter precautions");
             return;
         }
+
         if (newDiagnosis.conditions.length === 0) {
             alert("Please add at least one condition");
             return;
@@ -183,17 +220,20 @@ const DoctorHome = () => {
                 tests: newDiagnosis.tests
             };
 
-            const response = await axios.post('http://localhost:3000/diagnosis/setdiagnosis', diagnosisData, {
-                withCredentials: true
-            });
+            const response = await axios.post(
+                "http://localhost:3000/diagnosis/setdiagnosis",
+                diagnosisData,
+                { withCredentials: true }
+            );
 
             if (response.data.success) {
                 alert("Diagnosis added successfully!");
-                // Reset form
+
                 setShowNewDiagnosis(false);
                 setPatientVerified(false);
                 setPatientId("");
                 setPatientData(null);
+
                 setNewDiagnosis({
                     patientid: "",
                     facilityid: "",
@@ -203,178 +243,260 @@ const DoctorHome = () => {
                     medicines: [],
                     tests: []
                 });
-                // Refresh diagnoses list
-                const diagnosisdet = await axios.get('http://localhost:3000/doctor/getdiagnosis', { withCredentials: true });
+
+                const diagnosisdet = await axios.get(
+                    "http://localhost:3000/doctor/getdiagnosis",
+                    { withCredentials: true }
+                );
+
                 setDiagnoses(diagnosisdet.data);
             } else {
-                alert(response.data.message || "Error submitting diagnosis");
+                alert(
+                    response.data.message ||
+                    "Error submitting diagnosis"
+                );
             }
         } catch (error) {
             console.error("Error submitting diagnosis:", error);
-            alert(error.response?.data?.message || "Error submitting diagnosis");
+            alert(
+                error.response?.data?.message ||
+                "Error submitting diagnosis"
+            );
         }
     };
 
+    // Original logout request preserved.
+    const logout = async () => {
+        await axios.post(
+            "http://localhost:3000/auth/logout",
+            {},
+            { withCredentials: true }
+        );
+
+        window.location.href = "/";
+    };
+
+    const inputClass =
+        "w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800 outline-none transition focus:border-[#8b1e2d] focus:ring-2 focus:ring-[#8b1e2d]/10";
+
+    const labelClass =
+        "mb-2 block text-sm font-medium text-stone-700";
+
+    const buttonClass =
+        "rounded-xl bg-[#8b1e2d] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#701725] disabled:cursor-not-allowed disabled:opacity-50";
+
+    const secondaryButtonClass =
+        "rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-[#8b1e2d] hover:text-[#8b1e2d]";
+
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-indigo-50 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-teal-500"></div>
+            <div className="flex min-h-screen items-center justify-center bg-[#f8f7f4]">
+                <div className="text-center">
+                    <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-stone-200 border-t-[#8b1e2d]" />
+                    <p className="mt-4 text-sm text-stone-500">
+                        Loading your dashboard...
+                    </p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-indigo-50">
-            {/* Decorative elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-40 -right-40 w-80 h-80 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
-            </div>
+        <div className="min-h-screen bg-[#f8f7f4] text-[#211c1c]">
+            {/* Navigation */}
+            <header className="sticky top-0 z-30 border-b border-stone-200/80 bg-[#f8f7f4]/95 backdrop-blur">
+                <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8">
+                    <a href="/" className="text-2xl font-bold tracking-tight">
+                        Health<span className="text-[#8b1e2d]">Care</span>
+                    </a>
 
-            {/* Navigation Bar */}
-            <nav className="relative z-10 bg-white/80 backdrop-blur-lg border-b border-white/20">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        <div className="flex items-center">
-                            <span className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
-                                HealthCare
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <span className="text-gray-700 px-3 py-2">
-                                <i className="fas fa-user-md text-teal-600 mr-2"></i>
+                    <div className="flex items-center gap-3">
+                        <div className="hidden text-right sm:block">
+                            <p className="text-sm font-semibold">
                                 Dr. {doctordetails?.userid}
-                            </span>
-                            <button 
-                                onClick={async () => {
-                                    await axios.post('http://localhost:3000/auth/logout', {}, { withCredentials: true });
-                                    window.location.href = '/';
-                                }}
-                                className="text-gray-700 hover:text-teal-600 px-3 py-2"
-                            >
-                                <i className="fas fa-sign-out-alt"></i>
-                            </button>
+                            </p>
+                            <p className="text-xs text-stone-500">
+                                Doctor Dashboard
+                            </p>
                         </div>
+
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#8b1e2d]/10 font-semibold text-[#8b1e2d]">
+                            {String(doctordetails?.userid || "D")
+                                .charAt(0)
+                                .toUpperCase()}
+                        </div>
+
+                        <button
+                            onClick={logout}
+                            className={secondaryButtonClass}
+                        >
+                            Log out
+                        </button>
                     </div>
                 </div>
-            </nav>
+            </header>
 
-            {/* Main Content */}
-            <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Welcome Section with Add Diagnosis Button */}
-                <div className="mb-8 flex justify-between items-center">
+            <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
+                {/* Welcome */}
+                <section className="mb-9 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">
-                            Welcome back, <span className="bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">Dr. {doctordetails?.userid}</span>
+                        <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#8b1e2d]">
+                            Doctor workspace
+                        </p>
+
+                        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                            Welcome back, Dr.{" "}
+                            {doctordetails?.userid || "Doctor"}
                         </h1>
-                        <p className="text-gray-600 mt-2">{doctordetails?.specialization} • License: {doctordetails?.license}</p>
+
+                        <p className="mt-3 text-sm text-stone-500 sm:text-base">
+                            {doctordetails?.specialization ||
+                                "Medical professional"}
+                            {doctordetails?.license
+                                ? ` · License: ${doctordetails.license}`
+                                : ""}
+                        </p>
                     </div>
+
                     <button
                         onClick={() => setShowNewDiagnosis(!showNewDiagnosis)}
-                        className="px-6 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-xl font-semibold hover:opacity-90 transition-all shadow-lg flex items-center gap-2"
+                        className={buttonClass}
                     >
-                        <i className="fas fa-plus-circle"></i>
-                        {showNewDiagnosis ? "Cancel" : "New Diagnosis"}
+                        {showNewDiagnosis ? "Close form" : "+ New diagnosis"}
                     </button>
-                </div>
+                </section>
+
+                {/* Overview cards */}
+                <section className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-stone-200 bg-white p-5">
+                        <p className="text-sm text-stone-500">Doctor ID</p>
+                        <p className="mt-2 break-words text-xl font-bold">
+                            {doctordetails?.userid || "—"}
+                        </p>
+                        <p className="mt-1 text-xs text-stone-400">
+                            Your registered account
+                        </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-stone-200 bg-white p-5">
+                        <p className="text-sm text-stone-500">
+                            Associated facilities
+                        </p>
+                        <p className="mt-2 text-3xl font-bold">
+                            {facilities.length}
+                        </p>
+                        <p className="mt-1 text-xs text-stone-400">
+                            Facilities linked to you
+                        </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-stone-200 bg-white p-5">
+                        <p className="text-sm text-stone-500">
+                            Diagnoses recorded
+                        </p>
+                        <p className="mt-2 text-3xl font-bold">
+                            {diagnoses.length}
+                        </p>
+                        <p className="mt-1 text-xs text-stone-400">
+                            Patient diagnosis records
+                        </p>
+                    </div>
+                </section>
 
                 {/* New Diagnosis Form */}
                 {showNewDiagnosis && (
-                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
-                            <i className="fas fa-notes-medical text-teal-600"></i>
-                            Add New Diagnosis
-                        </h2>
+                    <section className="mb-8 rounded-2xl border border-stone-200 bg-white p-5 sm:p-8">
+                        <div className="mb-7 border-b border-stone-100 pb-5">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b1e2d]">
+                                Patient care
+                            </p>
+                            <h2 className="mt-2 text-2xl font-bold">
+                                Create a diagnosis
+                            </h2>
+                            <p className="mt-2 text-sm text-stone-500">
+                                Verify the patient before entering the diagnosis.
+                            </p>
+                        </div>
 
-                        {/* Patient Verification */}
                         {!patientVerified ? (
-                            <div className="bg-blue-50 rounded-xl p-6 mb-6">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Enter Patient User ID
+                            <div className="rounded-xl bg-stone-50 p-5">
+                                <label className={labelClass}>
+                                    Patient user ID
                                 </label>
-                                <div className="flex gap-3">
+
+                                <div className="flex flex-col gap-3 sm:flex-row">
                                     <input
                                         type="text"
                                         value={patientId}
                                         onChange={(e) => setPatientId(e.target.value)}
-                                        placeholder="e.g., patient123"
-                                        className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none"
+                                        placeholder="Enter patient ID"
+                                        className={inputClass}
                                     />
+
                                     <button
                                         onClick={verifyPatient}
                                         disabled={verifying}
-                                        className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all disabled:opacity-50"
+                                        className={buttonClass}
                                     >
-                                        {verifying ? "Verifying..." : "Verify Patient"}
+                                        {verifying ? "Verifying..." : "Verify patient"}
                                     </button>
                                 </div>
                             </div>
                         ) : (
                             <>
-                                {/* Verified Patient Banner */}
-                                <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                                                <i className="fas fa-check-circle text-green-600"></i>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-gray-600">Patient Verified</p>
-                                                <p className="font-semibold text-gray-800">ID: {patientId}</p>
-                                            </div>
+                                {/* Verified patient */}
+                                <div className="mb-7 rounded-xl border border-emerald-200 bg-emerald-50/70 p-5">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                                                Patient verified
+                                            </p>
+                                            <h3 className="mt-1 text-lg font-bold">
+                                                {patientData?.userid || patientId}
+                                            </h3>
                                         </div>
+
                                         <button
                                             onClick={() => {
                                                 setPatientVerified(false);
                                                 setPatientId("");
                                                 setPatientData(null);
                                             }}
-                                            className="text-gray-500 hover:text-gray-700"
+                                            className={secondaryButtonClass}
                                         >
-                                            <i className="fas fa-times"></i>
+                                            Change patient
                                         </button>
                                     </div>
 
-                                    {/* Patient Details Card */}
                                     {patientData && (
-                                        <div className="bg-white rounded-lg p-4 mt-2">
-                                            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                                                <i className="fas fa-user-circle text-teal-600"></i>
-                                                Patient Information
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                <div>
-                                                    <p className="text-xs text-gray-500">User ID</p>
-                                                    <p className="text-sm font-medium text-gray-800">{patientData.userid}</p>
+                                        <div className="mt-5 grid grid-cols-1 gap-4 border-t border-emerald-200 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+                                            {[
+                                                ["User ID", patientData.userid],
+                                                ["Age", patientData.age],
+                                                ["Gender", patientData.gender],
+                                                ["Blood group", patientData.bloodg]
+                                            ].map(([label, value]) => (
+                                                <div key={label}>
+                                                    <p className="text-xs text-stone-500">
+                                                        {label}
+                                                    </p>
+                                                    <p className="mt-1 font-semibold">
+                                                        {value || "—"}
+                                                    </p>
                                                 </div>
-                                                {patientData.age && (
-                                                    <div>
-                                                        <p className="text-xs text-gray-500">Age</p>
-                                                        <p className="text-sm font-medium text-gray-800">{patientData.age}</p>
-                                                    </div>
-                                                )}
-                                                {patientData.gender && (
-                                                    <div>
-                                                        <p className="text-xs text-gray-500">Gender</p>
-                                                        <p className="text-sm font-medium text-gray-800">{patientData.gender}</p>
-                                                    </div>
-                                                )}
-                                                {patientData.bloodg && (
-                                                    <div>
-                                                        <p className="text-xs text-gray-500">Blood Group</p>
-                                                        <p className="text-sm font-medium text-gray-800">{patientData.bloodg}</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            
-                                            {patientData.allergies && patientData.allergies.length > 0 && (
-                                                <div className="mt-3">
-                                                    <p className="text-xs text-gray-500 mb-1">Known Allergies</p>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {patientData.allergies.map((allergy, idx) => (
-                                                            <span key={idx} className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">
-                                                                <i className="fas fa-allergies mr-1"></i>
+                                            ))}
+
+                                            {patientData.allergies?.length > 0 && (
+                                                <div className="sm:col-span-2 lg:col-span-4">
+                                                    <p className="text-xs text-stone-500">
+                                                        Known allergies
+                                                    </p>
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                        {patientData.allergies.map((allergy, index) => (
+                                                            <span
+                                                                key={index}
+                                                                className="rounded-full border border-red-200 bg-white px-3 py-1 text-sm text-red-700"
+                                                            >
                                                                 {allergy}
                                                             </span>
                                                         ))}
@@ -385,66 +507,117 @@ const DoctorHome = () => {
                                     )}
                                 </div>
 
-                                {/* Facility Selection */}
-                                <div className="mb-6">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Select Facility (Optional)
-                                    </label>
-                                    <select
-                                        value={newDiagnosis.facilityid}
-                                        onChange={(e) => setNewDiagnosis(prev => ({ ...prev, facilityid: e.target.value }))}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-teal-500 focus:ring-4 focus:ring-teal-100 outline-none bg-white"
-                                    >
-                                        <option value="">No Facility</option>
-                                        {facilities.map((facility, index) => (
-                                            <option key={index} value={facility.userid}>
-                                                {facility.address}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                {/* Diagnosis details */}
+                                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                                    <div>
+                                        <label className={labelClass}>
+                                            Reason for visit *
+                                        </label>
+                                        <textarea
+                                            value={newDiagnosis.reason}
+                                            onChange={(e) =>
+                                                setNewDiagnosis((prev) => ({
+                                                    ...prev,
+                                                    reason: e.target.value
+                                                }))
+                                            }
+                                            placeholder="Describe the reason for the visit"
+                                            rows={3}
+                                            className={inputClass}
+                                        />
+                                    </div>
 
-                                {/* Reason for Visit */}
-                                <div className="mb-6">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Reason for Visit <span className="text-red-500">*</span>
-                                    </label>
-                                    <textarea
-                                        value={newDiagnosis.reason}
-                                        onChange={(e) => setNewDiagnosis(prev => ({ ...prev, reason: e.target.value }))}
-                                        rows="2"
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-teal-500 focus:ring-4 focus:ring-teal-100 outline-none"
-                                        placeholder="Why is the patient visiting?"
-                                        required
-                                    />
+                                    <div>
+                                        <label className={labelClass}>
+                                            Precautions *
+                                        </label>
+                                        <textarea
+                                            value={newDiagnosis.precaution}
+                                            onChange={(e) =>
+                                                setNewDiagnosis((prev) => ({
+                                                    ...prev,
+                                                    precaution: e.target.value
+                                                }))
+                                            }
+                                            placeholder="Enter precautions and advice"
+                                            rows={3}
+                                            className={inputClass}
+                                        />
+                                    </div>
+
+                                    <div className="md:col-span-2">
+                                        <label className={labelClass}>
+                                            Associated facility
+                                        </label>
+                                        <select
+                                            value={newDiagnosis.facilityid}
+                                            onChange={(e) =>
+                                                setNewDiagnosis((prev) => ({
+                                                    ...prev,
+                                                    facilityid: e.target.value
+                                                }))
+                                            }
+                                            className={inputClass}
+                                        >
+                                            <option value="">
+                                                No facility selected
+                                            </option>
+                                            {facilities.map((facility, index) => (
+                                                <option
+                                                    key={facility.userid || index}
+                                                    value={facility.userid}
+                                                >
+                                                    {facility.userid}
+                                                    {facility.address
+                                                        ? ` — ${facility.address}`
+                                                        : ""}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
 
                                 {/* Conditions */}
-                                <div className="mb-6">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Conditions Diagnosed <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="flex gap-2 mb-2">
+                                <div className="mt-8 border-t border-stone-100 pt-6">
+                                    <h3 className="mb-4 text-lg font-bold">
+                                        Conditions *
+                                    </h3>
+
+                                    <div className="flex flex-col gap-3 sm:flex-row">
                                         <input
-                                            type="text"
                                             value={currentCondition}
                                             onChange={(e) => setCurrentCondition(e.target.value)}
-                                            className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none"
-                                            placeholder="e.g., Hypertension"
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    addCondition();
+                                                }
+                                            }}
+                                            placeholder="Enter a condition"
+                                            className={inputClass}
                                         />
                                         <button
                                             type="button"
                                             onClick={addCondition}
-                                            className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all"
+                                            className={buttonClass}
                                         >
-                                            Add
+                                            Add condition
                                         </button>
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
+
+                                    <div className="mt-4 flex flex-wrap gap-2">
                                         {newDiagnosis.conditions.map((condition, index) => (
-                                            <span key={index} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm flex items-center gap-2">
+                                            <span
+                                                key={index}
+                                                className="inline-flex items-center gap-2 rounded-full bg-[#8b1e2d]/8 px-3 py-2 text-sm font-medium text-[#8b1e2d]"
+                                            >
                                                 {condition}
-                                                <button onClick={() => removeCondition(index)} className="text-purple-700 hover:text-purple-900">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeCondition(index)}
+                                                    className="font-bold"
+                                                    aria-label={`Remove ${condition}`}
+                                                >
                                                     ×
                                                 </button>
                                             </span>
@@ -452,74 +625,87 @@ const DoctorHome = () => {
                                     </div>
                                 </div>
 
-                                {/* Precautions */}
-                                <div className="mb-6">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Precautions <span className="text-red-500">*</span>
-                                    </label>
-                                    <textarea
-                                        value={newDiagnosis.precaution}
-                                        onChange={(e) => setNewDiagnosis(prev => ({ ...prev, precaution: e.target.value }))}
-                                        rows="2"
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none"
-                                        placeholder="Precautions to take"
-                                        required
-                                    />
-                                </div>
-
                                 {/* Medicines */}
-                                <div className="mb-6">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Prescribed Medicines
-                                    </label>
-                                    <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2">
+                                <div className="mt-8 border-t border-stone-100 pt-6">
+                                    <h3 className="mb-4 text-lg font-bold">
+                                        Prescribed medicines
+                                    </h3>
+
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                         <input
-                                            type="text"
-                                            placeholder="Medicine name"
                                             value={currentMedicine.name}
-                                            onChange={(e) => setCurrentMedicine(prev => ({ ...prev, name: e.target.value }))}
-                                            className="col-span-2 px-4 py-3 rounded-xl border border-gray-200 focus:border-green-500 outline-none"
+                                            onChange={(e) =>
+                                                setCurrentMedicine((prev) => ({
+                                                    ...prev,
+                                                    name: e.target.value
+                                                }))
+                                            }
+                                            placeholder="Medicine name"
+                                            className={inputClass}
                                         />
                                         <input
-                                            type="text"
-                                            placeholder="Dosage"
                                             value={currentMedicine.dosage}
-                                            onChange={(e) => setCurrentMedicine(prev => ({ ...prev, dosage: e.target.value }))}
-                                            className="px-4 py-3 rounded-xl border border-gray-200 focus:border-green-500 outline-none"
+                                            onChange={(e) =>
+                                                setCurrentMedicine((prev) => ({
+                                                    ...prev,
+                                                    dosage: e.target.value
+                                                }))
+                                            }
+                                            placeholder="Dosage"
+                                            className={inputClass}
                                         />
                                         <input
-                                            type="text"
-                                            placeholder="Frequency"
                                             value={currentMedicine.frequency}
-                                            onChange={(e) => setCurrentMedicine(prev => ({ ...prev, frequency: e.target.value }))}
-                                            className="px-4 py-3 rounded-xl border border-gray-200 focus:border-green-500 outline-none"
+                                            onChange={(e) =>
+                                                setCurrentMedicine((prev) => ({
+                                                    ...prev,
+                                                    frequency: e.target.value
+                                                }))
+                                            }
+                                            placeholder="Frequency"
+                                            className={inputClass}
                                         />
                                         <input
-                                            type="text"
-                                            placeholder="Duration"
                                             value={currentMedicine.duration}
-                                            onChange={(e) => setCurrentMedicine(prev => ({ ...prev, duration: e.target.value }))}
-                                            className="px-4 py-3 rounded-xl border border-gray-200 focus:border-green-500 outline-none"
+                                            onChange={(e) =>
+                                                setCurrentMedicine((prev) => ({
+                                                    ...prev,
+                                                    duration: e.target.value
+                                                }))
+                                            }
+                                            placeholder="Duration"
+                                            className={inputClass}
                                         />
                                     </div>
+
                                     <button
                                         type="button"
                                         onClick={addMedicine}
-                                        className="mb-3 px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all"
+                                        className={`${buttonClass} mt-3`}
                                     >
-                                        Add Medicine
+                                        Add medicine
                                     </button>
-                                    <div className="space-y-2">
+
+                                    <div className="mt-4 space-y-3">
                                         {newDiagnosis.medicines.map((medicine, index) => (
-                                            <div key={index} className="flex items-center justify-between bg-green-50 p-3 rounded-xl">
-                                                <div className="flex gap-4 text-sm">
-                                                    <span className="font-medium">{medicine.name}</span>
-                                                    <span className="text-gray-600">{medicine.dosage}</span>
-                                                    <span className="text-gray-600">{medicine.frequency}</span>
-                                                    <span className="text-gray-600">{medicine.duration}</span>
+                                            <div
+                                                key={index}
+                                                className="flex flex-col justify-between gap-3 rounded-xl border border-stone-200 p-4 sm:flex-row sm:items-center"
+                                            >
+                                                <div>
+                                                    <p className="font-semibold">
+                                                        {medicine.name}
+                                                    </p>
+                                                    <p className="mt-1 text-sm text-stone-500">
+                                                        {medicine.dosage} · {medicine.frequency} · {medicine.duration}
+                                                    </p>
                                                 </div>
-                                                <button onClick={() => removeMedicine(index)} className="text-red-500 hover:text-red-700">
-                                                    <i className="fas fa-trash"></i>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeMedicine(index)}
+                                                    className="self-start text-sm font-medium text-red-700 hover:underline sm:self-center"
+                                                >
+                                                    Remove
                                                 </button>
                                             </div>
                                         ))}
@@ -527,50 +713,74 @@ const DoctorHome = () => {
                                 </div>
 
                                 {/* Tests */}
-                                <div className="mb-6">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Recommended Tests
-                                    </label>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+                                <div className="mt-8 border-t border-stone-100 pt-6">
+                                    <h3 className="mb-4 text-lg font-bold">
+                                        Recommended tests
+                                    </h3>
+
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                         <input
-                                            type="text"
-                                            placeholder="Test type"
                                             value={currentTest.type}
-                                            onChange={(e) => setCurrentTest(prev => ({ ...prev, type: e.target.value }))}
-                                            className="px-4 py-3 rounded-xl border border-gray-200 focus:border-amber-500 outline-none"
+                                            onChange={(e) =>
+                                                setCurrentTest((prev) => ({
+                                                    ...prev,
+                                                    type: e.target.value
+                                                }))
+                                            }
+                                            placeholder="Test type"
+                                            className={inputClass}
                                         />
                                         <input
-                                            type="text"
-                                            placeholder="Test ID (optional)"
                                             value={currentTest.testid}
-                                            onChange={(e) => setCurrentTest(prev => ({ ...prev, testid: e.target.value }))}
-                                            className="px-4 py-3 rounded-xl border border-gray-200 focus:border-amber-500 outline-none"
+                                            onChange={(e) =>
+                                                setCurrentTest((prev) => ({
+                                                    ...prev,
+                                                    testid: e.target.value
+                                                }))
+                                            }
+                                            placeholder="Test ID (optional)"
+                                            className={inputClass}
                                         />
-                                        <button
-                                            type="button"
-                                            onClick={addTest}
-                                            className="px-6 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all"
-                                        >
-                                            Add Test
-                                        </button>
                                     </div>
-                                    <div className="space-y-2">
+
+                                    <button
+                                        type="button"
+                                        onClick={addTest}
+                                        className={`${buttonClass} mt-3`}
+                                    >
+                                        Add test
+                                    </button>
+
+                                    <div className="mt-4 space-y-3">
                                         {newDiagnosis.tests.map((test, index) => (
-                                            <div key={index} className="flex items-center justify-between bg-amber-50 p-3 rounded-xl">
-                                                <div className="flex gap-4">
-                                                    <span className="font-medium">{test.type}</span>
-                                                    {test.testid && <span className="text-gray-600">ID: {test.testid}</span>}
+                                            <div
+                                                key={index}
+                                                className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 p-4"
+                                            >
+                                                <div>
+                                                    <p className="font-semibold">
+                                                        {test.type}
+                                                    </p>
+                                                    {test.testid && (
+                                                        <p className="text-sm text-stone-500">
+                                                            Test ID: {test.testid}
+                                                        </p>
+                                                    )}
                                                 </div>
-                                                <button onClick={() => removeTest(index)} className="text-red-500 hover:text-red-700">
-                                                    <i className="fas fa-trash"></i>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeTest(index)}
+                                                    className="text-sm font-medium text-red-700 hover:underline"
+                                                >
+                                                    Remove
                                                 </button>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
 
-                                {/* Submit Button */}
-                                <div className="flex justify-end gap-3">
+                                {/* Submit */}
+                                <div className="mt-8 flex flex-col-reverse justify-end gap-3 border-t border-stone-100 pt-6 sm:flex-row">
                                     <button
                                         onClick={() => {
                                             setShowNewDiagnosis(false);
@@ -578,206 +788,285 @@ const DoctorHome = () => {
                                             setPatientId("");
                                             setPatientData(null);
                                         }}
-                                        className="px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all"
+                                        className={secondaryButtonClass}
                                     >
                                         Cancel
                                     </button>
+
                                     <button
                                         onClick={submitDiagnosis}
-                                        className="px-6 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-xl font-semibold hover:opacity-90 transition-all"
+                                        className={buttonClass}
                                     >
-                                        Submit Diagnosis
+                                        Submit diagnosis
                                     </button>
                                 </div>
                             </>
                         )}
-                    </div>
+                    </section>
                 )}
 
-                {/* Doctor Profile Card */}
+                {/* Doctor Profile */}
                 {doctordetails && (
-                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
-                        <div className="flex items-start justify-between mb-6">
-                            <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                                <i className="fas fa-user-md text-teal-600"></i>
-                                Your Profile
+                    <section className="mb-8 rounded-2xl border border-stone-200 bg-white p-5 sm:p-7">
+                        <div className="mb-6">
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b1e2d]">
+                                Account details
+                            </p>
+                            <h2 className="mt-2 text-xl font-bold">
+                                Your profile
                             </h2>
-                            <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium">
-                                Active
-                            </span>
                         </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-gradient-to-br from-teal-50 to-white p-4 rounded-xl border border-teal-100">
-                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</label>
-                                <p className="text-lg font-semibold text-gray-800 mt-1">{doctordetails.userid}</p>
-                            </div>
-                            <div className="bg-gradient-to-br from-blue-50 to-white p-4 rounded-xl border border-blue-100">
-                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Specialization</label>
-                                <p className="text-lg font-semibold text-gray-800 mt-1">{doctordetails.specialization}</p>
-                            </div>
-                            <div className="bg-gradient-to-br from-purple-50 to-white p-4 rounded-xl border border-purple-100">
-                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">License</label>
-                                <p className="text-lg font-semibold text-gray-800 mt-1">{doctordetails.license}</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
-                {/* Facilities Section */}
-                {facilities.length > 0 && (
-                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
-                            <i className="fas fa-hospital text-blue-600"></i>
-                            Associated Facilities ({facilities.length})
-                        </h2>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {facilities.map((facility, index) => (
-                                <div key={index} className="bg-gradient-to-br from-blue-50 to-white rounded-xl border border-blue-100 p-5 hover:shadow-lg transition-all">
-                                    <div className="flex items-start justify-between mb-3">
-                                        <h3 className="font-semibold text-gray-800">Facility ID: {facility.userid}</h3>
-                                    </div>
-                                    
-                                    <div className="space-y-2">
-                                        <p className="text-gray-600 flex items-start gap-2">
-                                            <i className="fas fa-map-marker-alt text-blue-500 mt-1 text-sm"></i>
-                                            <span>{facility.address}</span>
-                                        </p>
-                                        
-                                        {facility.doctors && facility.doctors.length > 0 && (
-                                            <div className="mt-3">
-                                                <p className="text-sm font-medium text-gray-700 mb-2">Doctors at this facility:</p>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {facility.doctors.map((doctor, idx) => (
-                                                        <span key={idx} className="px-2 py-1 bg-white text-gray-700 rounded-full text-xs border border-gray-200">
-                                                            {doctor}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            {[
+                                ["User ID", doctordetails.userid],
+                                ["Specialization", doctordetails.specialization],
+                                ["License", doctordetails.license]
+                            ].map(([label, value]) => (
+                                <div
+                                    key={label}
+                                    className="rounded-xl bg-[#f8f7f4] p-4"
+                                >
+                                    <p className="text-xs font-medium uppercase tracking-wider text-stone-500">
+                                        {label}
+                                    </p>
+                                    <p className="mt-2 break-words font-semibold">
+                                        {value || "Not provided"}
+                                    </p>
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </section>
                 )}
 
-                {/* Diagnoses Section */}
-                {diagnoses.length > 0 && (
-                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6">
-                        <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
-                            <i className="fas fa-notes-medical text-purple-600"></i>
-                            Your Diagnoses ({diagnoses.length})
-                        </h2>
-                        
-                        <div className="space-y-4">
-                            {diagnoses.map((diagnosis, index) => (
-                                <div key={index} className="border border-gray-200 rounded-xl overflow-hidden">
-                                    <div 
-                                        className="bg-gradient-to-r from-gray-50 to-white p-4 cursor-pointer hover:bg-gray-100 transition-colors flex justify-between items-center"
-                                        onClick={() => toggleDiagnosis(index)}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <i className={`fas fa-chevron-${expandedDiagnosis === index ? 'down' : 'right'} text-gray-400`}></i>
-                                            <div>
-                                                <p className="font-semibold text-gray-800">Patient: {diagnosis.patientid}</p>
-                                                <p className="text-sm text-gray-600">Reason: {diagnosis.reason}</p>
+                {/* Facilities */}
+                <section className="mb-8">
+                    <div className="mb-5 flex items-end justify-between">
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b1e2d]">
+                                Your network
+                            </p>
+                            <h2 className="mt-2 text-2xl font-bold">
+                                Associated facilities
+                            </h2>
+                        </div>
+                        <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-stone-600 ring-1 ring-stone-200">
+                            {facilities.length}
+                        </span>
+                    </div>
+
+                    {facilities.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-10 text-center">
+                            <h3 className="font-semibold">
+                                No facilities associated
+                            </h3>
+                            <p className="mt-2 text-sm text-stone-500">
+                                Your associated facilities will appear here.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                            {facilities.map((facility, index) => (
+                                <article
+                                    key={facility.userid || index}
+                                    className="rounded-2xl border border-stone-200 bg-white p-5 transition hover:border-stone-300"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#8b1e2d]/10 text-lg font-bold text-[#8b1e2d]">
+                                            H
+                                        </div>
+
+                                        <div className="min-w-0">
+                                            <h3 className="break-words font-bold">
+                                                Facility {facility.userid}
+                                            </h3>
+                                            <p className="mt-2 break-words text-sm leading-6 text-stone-500">
+                                                {facility.address || "No address provided"}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {facility.doctors?.length > 0 && (
+                                        <div className="mt-5 border-t border-stone-100 pt-4">
+                                            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-500">
+                                                Doctors at this facility
+                                            </p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {facility.doctors.map((doctor, idx) => (
+                                                    <span
+                                                        key={idx}
+                                                        className="rounded-full bg-stone-100 px-3 py-1.5 text-xs text-stone-700"
+                                                    >
+                                                        {doctor}
+                                                    </span>
+                                                ))}
                                             </div>
                                         </div>
-                                        <span className="text-xs text-gray-500">
-                                            {new Date(diagnosis.createdAt).toLocaleDateString()}
+                                    )}
+                                </article>
+                            ))}
+                        </div>
+                    )}
+                </section>
+
+                {/* Diagnoses */}
+                <section>
+                    <div className="mb-5 flex items-end justify-between">
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8b1e2d]">
+                                Patient records
+                            </p>
+                            <h2 className="mt-2 text-2xl font-bold">
+                                Diagnosis history
+                            </h2>
+                        </div>
+                        <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-stone-600 ring-1 ring-stone-200">
+                            {diagnoses.length}
+                        </span>
+                    </div>
+
+                    {diagnoses.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-10 text-center">
+                            <h3 className="font-semibold">
+                                No diagnoses yet
+                            </h3>
+                            <p className="mt-2 text-sm text-stone-500">
+                                Diagnoses you create will appear here.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {diagnoses.map((diagnosis, index) => (
+                                <article
+                                    key={index}
+                                    className="overflow-hidden rounded-2xl border border-stone-200 bg-white"
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleDiagnosis(index)}
+                                        className="flex w-full flex-col justify-between gap-3 p-5 text-left transition hover:bg-stone-50 sm:flex-row sm:items-center"
+                                    >
+                                        <div className="flex min-w-0 items-start gap-3">
+                                            <span className="mt-0.5 text-[#8b1e2d]">
+                                                {expandedDiagnosis === index ? "−" : "+"}
+                                            </span>
+
+                                            <div className="min-w-0">
+                                                <h3 className="break-words font-bold">
+                                                    Patient: {diagnosis.patientid}
+                                                </h3>
+                                                <p className="mt-1 break-words text-sm text-stone-500">
+                                                    {diagnosis.reason || "No reason provided"}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <span className="shrink-0 text-xs text-stone-400">
+                                            {diagnosis.createdAt
+                                                ? new Date(diagnosis.createdAt).toLocaleDateString()
+                                                : ""}
                                         </span>
-                                    </div>
-                                    
+                                    </button>
+
                                     {expandedDiagnosis === index && (
-                                        <div className="p-4 bg-gray-50 border-t border-gray-200">
-                                            {/* Conditions */}
+                                        <div className="border-t border-stone-100 bg-[#f8f7f4]/60 p-5 sm:p-6">
                                             {diagnosis.conditions?.length > 0 && (
-                                                <div className="mb-3">
-                                                    <p className="text-sm font-medium text-gray-700 mb-1">Conditions:</p>
+                                                <div className="mb-5">
+                                                    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-500">
+                                                        Conditions
+                                                    </p>
                                                     <div className="flex flex-wrap gap-2">
                                                         {diagnosis.conditions.map((condition, idx) => (
-                                                            <span key={idx} className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
+                                                            <span
+                                                                key={idx}
+                                                                className="rounded-full bg-[#8b1e2d]/10 px-3 py-1.5 text-sm font-medium text-[#8b1e2d]"
+                                                            >
                                                                 {condition}
                                                             </span>
                                                         ))}
                                                     </div>
                                                 </div>
                                             )}
-                                            
-                                            {/* Precautions */}
+
                                             {diagnosis.precaution && (
-                                                <div className="mb-3">
-                                                    <p className="text-sm font-medium text-gray-700 mb-1">Precautions:</p>
-                                                    <p className="text-sm text-gray-600 bg-white p-2 rounded-lg">{diagnosis.precaution}</p>
+                                                <div className="mb-5">
+                                                    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-500">
+                                                        Precautions
+                                                    </p>
+                                                    <p className="whitespace-pre-wrap rounded-xl bg-white p-4 text-sm leading-6 text-stone-700">
+                                                        {diagnosis.precaution}
+                                                    </p>
                                                 </div>
                                             )}
-                                            
-                                            {/* Medicines */}
+
                                             {diagnosis.medicines?.length > 0 && (
-                                                <div className="mb-3">
-                                                    <p className="text-sm font-medium text-gray-700 mb-1">Prescribed Medicines:</p>
+                                                <div className="mb-5">
+                                                    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-500">
+                                                        Prescribed medicines
+                                                    </p>
                                                     <div className="space-y-2">
                                                         {diagnosis.medicines.map((medicine, idx) => (
-                                                            <div key={idx} className="bg-white p-2 rounded-lg text-sm">
-                                                                <span className="font-medium">{medicine.name}</span> - {medicine.dosage}, {medicine.frequency}, {medicine.duration}
+                                                            <div
+                                                                key={idx}
+                                                                className="flex flex-col justify-between gap-2 rounded-xl bg-white p-4 sm:flex-row sm:items-center"
+                                                            >
+                                                                <div>
+                                                                    <p className="font-semibold">
+                                                                        {medicine.name}
+                                                                    </p>
+                                                                    <p className="mt-1 text-sm text-stone-500">
+                                                                        {medicine.dosage} · {medicine.frequency} · {medicine.duration}
+                                                                    </p>
+                                                                </div>
+
                                                                 {medicine.purchased && (
-                                                                    <span className="ml-2 text-green-600">(Purchased)</span>
+                                                                    <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                                                        Purchased
+                                                                    </span>
                                                                 )}
                                                             </div>
                                                         ))}
                                                     </div>
                                                 </div>
                                             )}
-                                            
-                                            {/* Tests */}
+
                                             {diagnosis.tests?.length > 0 && (
-                                                <div className="mb-3">
-                                                    <p className="text-sm font-medium text-gray-700 mb-1">Recommended Tests:</p>
+                                                <div className="mb-5">
+                                                    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-500">
+                                                        Recommended tests
+                                                    </p>
                                                     <div className="flex flex-wrap gap-2">
                                                         {diagnosis.tests.map((test, idx) => (
-                                                            <span key={idx} className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs">
-                                                                {test.type} {test.testid && `(ID: ${test.testid})`}
+                                                            <span
+                                                                key={idx}
+                                                                className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm"
+                                                            >
+                                                                {test.type}
+                                                                {test.testid
+                                                                    ? ` · ID: ${test.testid}`
+                                                                    : ""}
                                                             </span>
                                                         ))}
                                                     </div>
                                                 </div>
                                             )}
-                                            
-                                            {/* Facility */}
+
                                             {diagnosis.facilityid && (
-                                                <p className="text-xs text-gray-500 mt-2">Facility ID: {diagnosis.facilityid}</p>
+                                                <p className="border-t border-stone-200 pt-4 text-xs text-stone-500">
+                                                    Facility ID: {diagnosis.facilityid}
+                                                </p>
                                             )}
                                         </div>
                                     )}
-                                </div>
+                                </article>
                             ))}
                         </div>
-                    </div>
-                )}
+                    )}
+                </section>
 
-                {/* Empty States */}
-                {facilities.length === 0 && (
-                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-12 text-center mb-8">
-                        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <i className="fas fa-hospital text-3xl text-gray-400"></i>
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-800 mb-2">No Facilities Associated</h3>
-                        <p className="text-gray-600">You are not currently associated with any facilities</p>
-                    </div>
-                )}
-
-                {diagnoses.length === 0 && (
-                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-12 text-center">
-                        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <i className="fas fa-notes-medical text-3xl text-gray-400"></i>
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-800 mb-2">No Diagnoses Yet</h3>
-                        <p className="text-gray-600">Your diagnosis history will appear here</p>
-                    </div>
-                )}
+                <footer className="mt-12 border-t border-stone-200 py-6 text-center text-xs text-stone-400">
+                    HealthCare · Doctor Dashboard
+                </footer>
             </main>
         </div>
     );

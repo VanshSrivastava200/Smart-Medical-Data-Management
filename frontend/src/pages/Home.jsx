@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -11,16 +12,22 @@ const Home = () => {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        const response = await axios.get("http://localhost:3000/auth/getme", {
-          withCredentials: true
-        });
-        
+        const response = await axios.get(
+          "http://localhost:3000/auth/getme",
+          { withCredentials: true }
+        );
+
+        console.log("GET /auth/getme response:", response.data);
+
         setUser(response.data);
-        // You need to set this based on your backend response
-        // This should come from your API
         setProfileCompleted(response.data.profileCompleted || false);
       } catch (error) {
-        // User is not logged in
+        console.error(
+          "GET /auth/getme failed:",
+          error.response?.status,
+          error.response?.data || error.message
+        );
+
         setUser(null);
         setProfileCompleted(false);
       } finally {
@@ -31,240 +38,255 @@ const Home = () => {
     checkAuthStatus();
   }, []);
 
-  // REMOVED THE AUTO-NAVIGATION useEffect
-  // Now users will stay on home page and see appropriate options
+  const getDashboardRoute = () => {
+    if (!user) return "/login";
+
+    switch (user.role?.toLowerCase()) {
+      case "doctor":
+        return "/doctordashboard";
+      case "lab":
+      case "laboratory":
+        return "/labdashboard";
+      default:
+        return "/dashboard";
+    }
+  };
+
+  const handlePrimaryAction = () => {
+    if (!user) {
+      navigate("/register");
+    } else if (!profileCompleted) {
+      navigate("/profile");
+    } else {
+      navigate(getDashboardRoute());
+    }
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-teal-500"></div>
+      <div className="min-h-screen bg-[#f8f7f4] flex items-center justify-center">
+        <div className="h-10 w-10 rounded-full border-4 border-[#e6d5d2] border-t-[#8b1e2d] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-indigo-50">
-      {/* Decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
-      </div>
+    <div className="min-h-screen bg-[#f8f7f4] text-[#211c1c]">
+      {/* Navigation */}
+      <nav className="border-b border-[#e8e2de] bg-[#f8f7f4]">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+          <Link to="/" className="text-2xl font-bold tracking-tight">
+            Health<span className="text-[#8b1e2d]">Care.</span>
+          </Link>
 
-      {/* Navigation Bar */}
-      <nav className="relative z-10 bg-white/80 backdrop-blur-lg border-b border-white/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <span className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
-                HealthCare
-              </span>
-            </div>
-            <div className="flex items-center gap-4">
-              {!user && (
-                <>
-                  <Link
-                    to="/login"
-                    className="text-gray-700 hover:text-teal-600 px-3 py-2 rounded-lg font-medium transition-colors"
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="bg-gradient-to-r from-teal-600 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-all"
-                  >
-                    Register
-                  </Link>
-                </>
-              )}
-              
-              {/* Show different options based on profile completion */}
-              {user && !profileCompleted && (
-                <>
-                  <span className="text-amber-600 text-sm font-medium">
-                    <i className="fas fa-exclamation-triangle mr-1"></i>
-                    Profile Incomplete
-                  </span>
-                  <Link
-                    to="/profile/complete"
-                    className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-all"
-                  >
-                    Complete Profile
-                  </Link>
-                </>
-              )}
-              
-              {user && profileCompleted && (
+          <div className="flex items-center gap-3">
+            {!user ? (
+              <>
                 <Link
-                  to="/dashboard"
-                  className="bg-gradient-to-r from-teal-600 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-all"
+                  to="/login"
+                  className="rounded-full px-5 py-2.5 text-sm font-medium hover:bg-[#eee9e4]"
                 >
-                  Dashboard
+                  Log in
                 </Link>
-              )}
-            </div>
+                <Link
+                  to="/register"
+                  className="rounded-full bg-[#8b1e2d] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#701725]"
+                >
+                  Get started
+                </Link>
+              </>
+            ) : (
+              <span className="text-sm text-[#6e6562]">
+                {user.name ? `Welcome, ${user.name}` : "Welcome back"}
+              </span>
+            )}
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Welcome to{' '}
-            <span className="bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
-              HealthCare
-            </span>
-          </h1>
-          <p className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto">
-            Your trusted platform for healthcare management. Connect with doctors, 
-            manage appointments, and access your medical records all in one place.
-          </p>
-
-          {/* Personalized greeting for logged in users */}
-          {user && (
-            <div className="mb-8">
-              <p className="text-2xl text-gray-800">
-                Welcome back, <span className="font-semibold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">{user.name}</span>!
-              </p>
+      {/* Hero */}
+      <main className="mx-auto max-w-7xl px-6">
+        <section className="grid min-h-[570px] items-center gap-12 py-20 md:grid-cols-2">
+          <div>
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#e8d7d4] bg-[#f1e7e4] px-4 py-2 text-sm text-[#8b1e2d]">
+              <span className="h-2 w-2 rounded-full bg-[#8b1e2d]" />
+              Healthcare, made simpler
             </div>
-          )}
 
-          {/* Call to Action - Shows different options based on status */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            {!user && (
-              <>
-                <Link
-                  to="/register"
-                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-xl bg-gradient-to-r from-teal-600 to-blue-600 text-white hover:opacity-90 transform hover:scale-105 transition-all shadow-lg"
-                >
-                  Get Started
-                  <i className="fas fa-arrow-right ml-2"></i>
-                </Link>
-                <Link
-                  to="/about"
-                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-xl bg-white text-gray-700 hover:bg-gray-50 transform hover:scale-105 transition-all shadow-lg border border-gray-200"
-                >
-                  Learn More
-                </Link>
-              </>
-            )}
-            
+            <h1 className="max-w-xl text-5xl font-semibold leading-tight tracking-tight sm:text-6xl">
+              Better care
+              <br />
+              starts with
+              <br />
+              <span className="text-[#8b1e2d]">better access.</span>
+            </h1>
+
+            <p className="mt-7 max-w-lg text-lg leading-8 text-[#746b68]">
+              A simpler way to connect with healthcare professionals, manage
+              appointments, and keep your medical information in one place.
+            </p>
+
             {user && !profileCompleted && (
-              <>
-                <Link
-                  to="/profile"
-                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:opacity-90 transform hover:scale-105 transition-all shadow-lg"
-                >
-                  <i className="fas fa-exclamation-circle mr-2"></i>
-                  Complete Your Profile
-                  <i className="fas fa-arrow-right ml-2"></i>
-                </Link>
-                <Link
-                  to="/about"
-                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-xl bg-white text-gray-700 hover:bg-gray-50 transform hover:scale-105 transition-all shadow-lg border border-gray-200"
-                >
-                  Learn More
-                </Link>
-              </>
+              <p className="mt-5 text-sm font-medium text-[#8b1e2d]">
+                Complete your profile to access your healthcare services.
+              </p>
             )}
-            
-            {user && profileCompleted && (
-              <>
-                <Link
-                  to="/dashboard"
-                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-xl bg-gradient-to-r from-teal-600 to-blue-600 text-white hover:opacity-90 transform hover:scale-105 transition-all shadow-lg"
-                >
-                  Go to Dashboard
-                  <i className="fas fa-tachometer-alt ml-2"></i>
-                </Link>
-                <Link
-                  to="/about"
-                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-xl bg-white text-gray-700 hover:bg-gray-50 transform hover:scale-105 transition-all shadow-lg border border-gray-200"
-                >
-                  Learn More
-                </Link>
-              </>
-            )}
+
+            <div className="mt-9 flex flex-wrap gap-4">
+              <button
+                onClick={handlePrimaryAction}
+                className="rounded-full bg-[#8b1e2d] px-7 py-4 font-medium text-white transition hover:bg-[#701725]"
+              >
+                {!user
+                  ? "Get started"
+                  : !profileCompleted
+                  ? "Complete your profile"
+                  : "Go to dashboard"}
+                <span className="ml-3">→</span>
+              </button>
+
+              <a
+                href="#services"
+                className="rounded-full border border-[#dcd3ce] px-7 py-4 font-medium transition hover:bg-[#eee9e4]"
+              >
+                Explore services
+              </a>
+            </div>
           </div>
 
-          {/* Warning message for incomplete profile */}
-          {user && !profileCompleted && (
-            <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl inline-block">
-              <p className="text-amber-700">
-                <i className="fas fa-info-circle mr-2"></i>
-                Your profile is incomplete. Please complete it to access all features.
+          {/* Visual panel */}
+          <div className="relative">
+            <div className="absolute -right-4 -top-4 h-32 w-32 rounded-full bg-[#e8d7d4] blur-2xl" />
+            <div className="relative rounded-[2rem] bg-[#8b1e2d] p-8 text-white shadow-xl sm:p-12">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-white/70">Your health, organized</p>
+                  <h2 className="mt-3 text-3xl font-semibold">
+                    Care in one place.
+                  </h2>
+                </div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 text-3xl">
+                  +
+                </div>
+              </div>
+
+              <div className="mt-12 space-y-4">
+                {[
+                  ["01", "Find healthcare professionals"],
+                  ["02", "Manage appointments"],
+                  ["03", "Access medical records"],
+                ].map(([number, label]) => (
+                  <div
+                    key={number}
+                    className="flex items-center gap-4 rounded-2xl border border-white/15 bg-white/10 p-5"
+                  >
+                    <span className="text-sm text-white/60">{number}</span>
+                    <span className="font-medium">{label}</span>
+                    <span className="ml-auto text-white/70">↗</span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="mt-8 text-sm leading-6 text-white/70">
+                Designed to make everyday healthcare management more
+                straightforward.
               </p>
             </div>
-          )}
-        </div>
+          </div>
+        </section>
 
-        {/* Features Section - Always visible */}
-        <div className="mt-32 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-white/20">
-            <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center mb-4">
-              <i className="fas fa-user-md text-teal-600 text-2xl"></i>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Find Doctors</h3>
-            <p className="text-gray-600">Connect with qualified healthcare professionals in your area</p>
+        {/* Services */}
+        <section id="services" className="py-20">
+          <div className="mb-10 max-w-xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#8b1e2d]">
+              Our services
+            </p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+              Everything you need for better care.
+            </h2>
+            <p className="mt-4 leading-7 text-[#746b68]">
+              Keep essential healthcare services accessible through one
+              straightforward platform.
+            </p>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-white/20">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-              <i className="fas fa-calendar-check text-blue-600 text-2xl"></i>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Easy Appointments</h3>
-            <p className="text-gray-600">Book and manage appointments with just a few clicks</p>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                number: "01",
+                title: "Find doctors",
+                description:
+                  "Connect with healthcare professionals for your needs.",
+              },
+              {
+                number: "02",
+                title: "Appointments",
+                description:
+                  "Keep track of appointments and healthcare visits.",
+              },
+              {
+                number: "03",
+                title: "Medical records",
+                description:
+                  "Keep important health information organized.",
+              },
+              {
+                number: "04",
+                title: "Care coordination",
+                description:
+                  "Make healthcare information easier to manage.",
+              },
+            ].map((service) => (
+              <article
+                key={service.number}
+                className="rounded-3xl border border-[#e8e2de] bg-white p-7 transition hover:-translate-y-1 hover:shadow-lg"
+              >
+                <span className="text-sm font-semibold text-[#8b1e2d]">
+                  {service.number}
+                </span>
+                <h3 className="mt-8 text-xl font-semibold">{service.title}</h3>
+                <p className="mt-3 leading-7 text-[#746b68]">
+                  {service.description}
+                </p>
+              </article>
+            ))}
           </div>
+        </section>
 
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-white/20">
-            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-4">
-              <i className="fas fa-file-medical text-indigo-600 text-2xl"></i>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Medical Records</h3>
-            <p className="text-gray-600">Access your health records securely anytime, anywhere</p>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-xl border border-white/20">
-            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
-              <i className="fas fa-clock text-purple-600 text-2xl"></i>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">24/7 Support</h3>
-            <p className="text-gray-600">Round-the-clock assistance for all your healthcare needs</p>
-          </div>
-        </div>
-
-        {/* Statistics Section - Always visible */}
-        <div className="mt-32 bg-white/80 backdrop-blur-lg rounded-3xl p-12 shadow-2xl border border-white/20">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+        {/* Call to action */}
+        <section className="mb-20 rounded-[2rem] bg-[#eae2dc] px-7 py-12 sm:px-12 sm:py-16">
+          <div className="flex flex-col justify-between gap-8 md:flex-row md:items-center">
             <div>
-              <div className="text-4xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent mb-2">
-                10,000+
-              </div>
-              <p className="text-gray-600">Active Patients</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#8b1e2d]">
+                Get started
+              </p>
+              <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+                Take a simpler approach to healthcare.
+              </h2>
             </div>
-            <div>
-              <div className="text-4xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent mb-2">
-                500+
-              </div>
-              <p className="text-gray-600">Healthcare Providers</p>
-            </div>
-            <div>
-              <div className="text-4xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent mb-2">
-                50,000+
-              </div>
-              <p className="text-gray-600">Appointments Completed</p>
-            </div>
+
+            <button
+              onClick={handlePrimaryAction}
+              className="shrink-0 rounded-full bg-[#8b1e2d] px-7 py-4 font-medium text-white transition hover:bg-[#701725]"
+            >
+              {!user
+                ? "Create an account"
+                : !profileCompleted
+                ? "Complete profile"
+                : "Open dashboard"}
+              <span className="ml-3">→</span>
+            </button>
           </div>
-        </div>
+        </section>
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 bg-white/80 backdrop-blur-lg border-t border-white/20 mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <p className="text-center text-gray-600">
-            © 2024 HealthCare. All rights reserved.
-          </p>
+      <footer className="border-t border-[#e8e2de]">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-7 text-sm text-[#746b68] sm:flex-row sm:items-center sm:justify-between">
+          <Link to="/" className="font-semibold text-[#211c1c]">
+            Health<span className="text-[#8b1e2d]">Care.</span>
+          </Link>
+          <p>Healthcare management, made simpler.</p>
         </div>
       </footer>
     </div>
