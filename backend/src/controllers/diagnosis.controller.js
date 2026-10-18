@@ -13,15 +13,22 @@ export const setDiagnosis = async (req, res) => {
             medicines,
             tests
         }
-
-        await Diagnosis.create(newDiagnosis).then(
-            res.status(200).json({message:"Diagnosis Saved"})
-        )
+        for(let i=0;i<newDiagnosis.tests.length;i++){
+            newDiagnosis.tests[i].testid=generateTestId();
+        }
+        await Diagnosis.create(newDiagnosis)
+        return res.status(200).json({message:"Diagnosis Saved"})
 
     } catch (err) {
         res.status(400).json({message:err.message})
         console.log(err.message)
     }
+}
+
+function generateTestId() {
+  return String(
+    Math.floor(1000000000 + Math.random() * 9000000000)
+  );
 }
 
 export const getDiagnosis=async(req,res)=>{

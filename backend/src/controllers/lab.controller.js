@@ -43,6 +43,24 @@ export const getLab = async (req, res) => {
     }
 }
 
+export const verifyTest=async(req,res)=>{
+    try{
+        console.log("Query:", req.query);
+        console.log("Test ID:", req.query.testid);
+        const testid= req.query.testid;
+        const test= await Diagnosis.findOne(
+            {"tests.testid":testid},
+            {"tests.$":1}
+        )
+        if(!test){
+            return res.status(404).json({message:" Test not found"})
+        }
+        return res.status(200).json(test.tests[0]);
+    }catch(err){
+        return res.status(404).json({message:err.message})
+    }
+}
+
 export const uploadResults = async (req, res) => {
     try {
         const { testId, result, notes, labid } = req.body

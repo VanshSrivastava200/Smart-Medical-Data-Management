@@ -63,4 +63,3 @@ export const getDiagnosis=async(req,res)=>{
         console.log(err)
     }
 }
-

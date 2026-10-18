@@ -48,10 +48,11 @@ const diagnosisSchema=new mongoose.Schema({
     tests:[{
         type:{
             type:String,
-            required:true,
+            required:true
         },
         testid:{
             type:String,
+            required:true
         },
         result:{
             type:String,
