@@ -944,20 +944,71 @@ const DoctorHome = () => {
                         </div>
                       )}
 
+                      {/* Recommended tests and uploaded results */}
                       {diagnosis.tests?.length > 0 && (
                         <div className="mb-5">
-                          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stone-500">
-                            Recommended tests
+                          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-stone-500">
+                            Recommended tests & results
                           </p>
-                          <div className="flex flex-wrap gap-2">
+
+                          <div className="space-y-3">
                             {diagnosis.tests.map((test, idx) => (
-                              <span
-                                key={idx}
-                                className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm"
+                              <div
+                                key={test._id || test.testid || idx}
+                                className="rounded-xl border border-stone-200 bg-white p-4"
                               >
-                                {test.type}
-                                {test.testid ? ` · ID: ${test.testid}` : ""}
-                              </span>
+                                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                                  <div>
+                                    <h4 className="font-semibold text-[#211c1c]">
+                                      {test.type}
+                                    </h4>
+
+                                    <p className="mt-1 text-sm text-stone-500">
+                                      Test ID: {test.testid || "Not assigned"}
+                                    </p>
+                                  </div>
+
+                                  <span
+                                    className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${
+                                      test.result
+                                        ? "bg-emerald-50 text-emerald-700"
+                                        : "bg-amber-50 text-amber-700"
+                                    }`}
+                                  >
+                                    {test.result
+                                      ? "Result uploaded"
+                                      : "Awaiting result"}
+                                  </span>
+                                </div>
+
+                                {test.result && (
+                                  <div className="mt-4 border-t border-stone-100 pt-4">
+                                    {test.notes && (
+                                      <p className="mb-3 whitespace-pre-wrap text-sm leading-6 text-stone-600">
+                                        <span className="font-semibold text-stone-800">
+                                          Lab notes:{" "}
+                                        </span>
+                                        {test.notes}
+                                      </p>
+                                    )}
+
+                                    <a
+                                      href={test.result}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center rounded-lg bg-[#8b1e2d] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#701725]"
+                                    >
+                                      View test report ↗
+                                    </a>
+                                  </div>
+                                )}
+
+                                {test.labid && (
+                                  <p className="mt-3 text-xs text-stone-400">
+                                    Uploaded by lab: {test.labid}
+                                  </p>
+                                )}
+                              </div>
                             ))}
                           </div>
                         </div>

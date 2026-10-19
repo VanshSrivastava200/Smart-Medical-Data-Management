@@ -1,6 +1,9 @@
-import { useState } from "react";
-import axios from "axios"
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
+
+const API = "http://localhost:3000";
+const CLOUD_NAME = "evf0qyxp";
+const UPLOAD_PRESET = "evf0qyxp";
 
 const LabDashboard = () => {
     const [labdetails, setLabdetails] = useState(null);
@@ -9,462 +12,612 @@ const LabDashboard = () => {
     const [completedHistory, setCompletedHistory] = useState([]);
     const [searching, setSearching] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [notes, setNotes] = useState("");
     const [expandedTest, setExpandedTest] = useState(null);
     const [activeTab, setActiveTab] = useState("search");
-    
-    // Test Results State
-    const [testResults, setTestResults] = useState({
-        result: "",
-        notes: ""
-    });
 
     useEffect(() => {
-        const getLabDetails = async () => {
+        const initializeDashboard = async () => {
             try {
-                const labdet = await axios.get('http://localhost:3000/lab/getlab', { 
-                    withCredentials: true 
+                const labResponse = await axios.get(`${API}/lab/getlab`, {
+                    withCredentials: true,
                 });
-                setLabdetails(labdet.data);
-                
-                // Fetch lab's completed history
-                const historyRes = await axios.get('http://localhost:3000/lab/gethistory', {
-                    withCredentials: true
-                });
-                setCompletedHistory(historyRes.data);
-                
-                console.log("Lab Details:", labdet.data);
-                console.log("Lab History:", historyRes.data);
+                setLabdetails(labResponse.data);
+
+                const historyResponse = await axios.get(
+                    `${API}/lab/gethistory`,
+                    { withCredentials: true }
+                );
+                setCompletedHistory(historyResponse.data);
             } catch (error) {
-                console.log("Error fetching lab data", error);
+                console.error("Error loading lab dashboard:", error);
             }
         };
-        getLabDetails();
+
+        initializeDashboard();
     }, []);
 
-    // Search for specific test by its _id
-    const searchTest = async () => {
+    const fetchHistory = async () => {
+        const response = await axios.get(`${API}/lab/gethistory`, {
+            withCredentials: true,
+        });
+        setCompletedHistory(response.data);
+    };
+
+    const searchTest = async (e) => {
+        e.preventDefault();
+
         if (!testId.trim()) {
-            alert("Please enter Test ID");
+            alert("Please enter a Test ID.");
             return;
         }
 
         setSearching(true);
+        setTestData(null);
+        setSelectedFile(null);
+        setNotes("");
+
         try {
-            const response = await axios.get(`http://localhost:3000/diagnosis/gettest`, {
-                params: { testId: testId },
-                withCredentials: true
+            const response = await axios.get(`${API}/lab/verifytest`, {
+                params: { testid: testId.trim() },
+                withCredentials: true,
             });
 
-            console.log("Response:", response.data);
-
-            if (response.data.success) {
-                setTestData(response.data.test);
-                setTestResults({
-                    result: response.data.test?.result || "",
-                    notes: response.data.test?.notes || ""
-                });
-            } else {
-                alert("Test not found");
-                setTestData(null);
-            }
+            setTestData(response.data);
         } catch (error) {
-            console.error("Error fetching test:", error);
-            alert(error.response?.data?.message || "Error fetching test");
+            console.error("Error searching for test:", error);
+            alert(error.response?.data?.message || "Test not found.");
             setTestData(null);
         } finally {
             setSearching(false);
         }
     };
 
-    // Handle result input change
-    const handleResultChange = (e) => {
-        const { name, value } = e.target;
-        setTestResults(prev => ({ ...prev, [name]: value }));
+    const resetSearch = () => {
+        setTestData(null);
+        setTestId("");
+        setSelectedFile(null);
+        setNotes("");
     };
 
-    // Upload results for the test
-    const uploadTestResult = async () => {
-        if (!testResults.result) {
-            alert("Please enter test results");
+    const uploadTestResult = async (e) => {
+        e.preventDefault();
+
+        if (!testData?._id) {
+            alert("Please search for a valid test first.");
+            return;
+        }
+
+        if (!selectedFile) {
+            alert("Please select a report file.");
+            return;
+        }
+
+        if (testData.result) {
+            alert("This test already has a report.");
+            return;
+        }
+
+        if (
+            !CLOUD_NAME ||
+            CLOUD_NAME === "YOUR_CLOUD_NAME" ||
+            !UPLOAD_PRESET ||
+            UPLOAD_PRESET === "YOUR_UNSIGNED_UPLOAD_PRESET"
+        ) {
+            alert("Configure your Cloudinary cloud name and upload preset first.");
             return;
         }
 
         setUploading(true);
+
         try {
-            const uploadData = {
-                testId: testData._id,
-                result: testResults.result,
-                notes: testResults.notes,
-                labid: labdetails?.userid
-            };
+            const formData = new FormData();
+            formData.append("file", selectedFile);
+            formData.append("upload_preset", UPLOAD_PRESET);
 
-            const response = await axios.post('http://localhost:3000/lab/upload', uploadData, {
-                withCredentials: true
-            });
+            const cloudResponse = await axios.post(
+                `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`,
+                formData
+            );
 
-            if (response.data.success) {
-                alert(`Results uploaded for ${testData.type} successfully!`);
-                
-                // Refresh completed history
-                const historyRes = await axios.get('http://localhost:3000/lab/gethistory', {
-                    withCredentials: true
-                });
-                setCompletedHistory(historyRes.data);
-                
-                // Clear the current test
-                setTestData(null);
-                setTestId("");
-                setTestResults({ result: "", notes: "" });
-                setActiveTab("history");
-            } else {
-                alert(response.data.message || "Error uploading results");
+            const resultUrl = cloudResponse.data.secure_url;
+
+            if (!resultUrl) {
+                throw new Error("The report URL was not returned.");
             }
+
+            const response = await axios.post(
+                `${API}/lab/upload`,
+                {
+                    testId: testData._id,
+                    result: resultUrl,
+                    notes,
+                    labid: labdetails?.userid,
+                },
+                { withCredentials: true }
+            );
+
+            if (!response.data.success) {
+                throw new Error(response.data.message || "Upload failed.");
+            }
+
+            await fetchHistory();
+            resetSearch();
+            setActiveTab("history");
+            alert("Report uploaded successfully.");
         } catch (error) {
-            console.error("Error uploading results:", error);
-            alert(error.response?.data?.message || "Error uploading results");
+            console.error("Report upload failed:", error);
+            alert(
+                error.response?.data?.message ||
+                error.message ||
+                "Failed to upload report."
+            );
         } finally {
             setUploading(false);
         }
     };
 
-    const toggleHistoryTest = (index) => {
-        if (expandedTest === index) {
-            setExpandedTest(null);
-        } else {
-            setExpandedTest(index);
-        }
-    };
+    const navButtonClass = (tab) =>
+        `border-b-2 px-1 py-4 text-sm font-semibold transition-colors ${
+            activeTab === tab
+                ? "border-[#8b1e2d] text-[#8b1e2d]"
+                : "border-transparent text-gray-500 hover:text-[#8b1e2d]"
+        }`;
+
+    const cardClass =
+        "rounded-2xl border border-[#e7e2dc] bg-white p-6 shadow-sm";
+
+    const labelClass =
+        "mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500";
+
+    const inputClass =
+        "w-full rounded-xl border border-[#ded9d3] bg-white px-4 py-3 text-sm text-[#211c1c] outline-none transition focus:border-[#8b1e2d] focus:ring-2 focus:ring-[#8b1e2d]/10";
+
+    const primaryButtonClass =
+        "rounded-xl bg-[#8b1e2d] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#711725] disabled:cursor-not-allowed disabled:opacity-50";
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-teal-50 via-blue-50 to-indigo-50">
-            {/* Decorative elements */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-40 -right-40 w-80 h-80 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
-            </div>
+        <div className="min-h-screen bg-[#f8f7f4] text-[#211c1c]">
+            {/* Navigation */}
+            <nav className="sticky top-0 z-20 border-b border-[#e7e2dc] bg-[#f8f7f4]/95 backdrop-blur">
+                <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+                    <div>
+                        <p className="text-xl font-bold tracking-tight text-[#8b1e2d]">
+                            HealthCare
+                        </p>
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500">
+                            Medical portal
+                        </p>
+                    </div>
 
-            {/* Navigation Bar */}
-            <nav className="relative z-10 bg-white/80 backdrop-blur-lg border-b border-white/20">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        <div className="flex items-center">
-                            <span className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">
-                                HealthCare
-                            </span>
+                    <div className="flex items-center gap-3 sm:gap-5">
+                        <div className="hidden text-right sm:block">
+                            <p className="text-xs text-gray-500">Logged in as</p>
+                            <p className="text-sm font-semibold">
+                                {labdetails?.userid || "Laboratory"}
+                            </p>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <span className="text-gray-700 px-3 py-2">
-                                <i className="fas fa-flask text-amber-600 mr-2"></i>
-                                Lab: {labdetails?.userid}
-                            </span>
-                            <button 
-                                onClick={async () => {
-                                    await axios.post('http://localhost:3000/auth/logout', {}, { withCredentials: true });
-                                    window.location.href = '/';
-                                }}
-                                className="text-gray-700 hover:text-teal-600 px-3 py-2"
-                            >
-                                <i className="fas fa-sign-out-alt"></i>
-                            </button>
-                        </div>
+
+                        <button
+                            onClick={async () => {
+                                try {
+                                    await axios.post(
+                                        `${API}/auth/logout`,
+                                        {},
+                                        { withCredentials: true }
+                                    );
+                                } finally {
+                                    window.location.href = "/";
+                                }
+                            }}
+                            className="rounded-xl border border-[#e0d9d2] px-4 py-2.5 text-sm font-semibold transition hover:border-[#8b1e2d] hover:text-[#8b1e2d]"
+                        >
+                            Log out
+                        </button>
                     </div>
                 </div>
             </nav>
 
-            {/* Main Content */}
-            <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Welcome Section */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">
-                        Welcome, <span className="bg-gradient-to-r from-teal-600 to-blue-600 bg-clip-text text-transparent">{labdetails?.userid}</span>
-                    </h1>
-                    <p className="text-gray-600 mt-2">Laboratory Dashboard</p>
-                </div>
+            <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+                {/* Page heading */}
+                <section className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                    <div>
+                        <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#8b1e2d]">
+                            Laboratory workspace
+                        </p>
+                        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                            Lab Dashboard
+                        </h1>
+                        <p className="mt-3 max-w-xl text-sm leading-6 text-gray-600">
+                            Search prescribed tests, upload laboratory reports,
+                            and review completed work.
+                        </p>
+                    </div>
 
-                {/* Lab Profile Card */}
+                    <div className="flex items-center gap-3 rounded-xl border border-[#e7e2dc] bg-white px-4 py-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#8b1e2d]/10 text-lg text-[#8b1e2d]">
+                            +
+                        </span>
+                        <div>
+                            <p className="text-xs text-gray-500">Completed reports</p>
+                            <p className="text-lg font-bold">
+                                {completedHistory.length}
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Laboratory information */}
                 {labdetails && (
-                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
-                        <div className="flex items-start justify-between mb-6">
-                            <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                                <i className="fas fa-flask text-amber-600"></i>
-                                Laboratory Profile
-                            </h2>
-                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                    <section className={`${cardClass} mb-8`}>
+                        <div className="mb-5 flex items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-lg font-bold">
+                                    Laboratory Profile
+                                </h2>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Your registered laboratory information
+                                </p>
+                            </div>
+                            <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
                                 Active
                             </span>
                         </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-gradient-to-br from-amber-50 to-white p-4 rounded-xl border border-amber-100">
-                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Lab ID</label>
-                                <p className="text-lg font-semibold text-gray-800 mt-1">{labdetails.userid}</p>
-                            </div>
-                            <div className="bg-gradient-to-br from-orange-50 to-white p-4 rounded-xl border border-orange-100">
-                                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Address</label>
-                                <p className="text-lg font-semibold text-gray-800 mt-1">{labdetails.address}</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
-                {/* Tabs */}
-                <div className="flex gap-4 mb-6 border-b border-gray-200">
-                    <button
-                        onClick={() => setActiveTab("search")}
-                        className={`pb-3 px-4 font-semibold transition-colors ${
-                            activeTab === "search" 
-                                ? "text-teal-600 border-b-2 border-teal-600" 
-                                : "text-gray-500 hover:text-gray-700"
-                        }`}
-                    >
-                        <i className="fas fa-search mr-2"></i>
-                        Upload Results
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("history")}
-                        className={`pb-3 px-4 font-semibold transition-colors ${
-                            activeTab === "history" 
-                                ? "text-teal-600 border-b-2 border-teal-600" 
-                                : "text-gray-500 hover:text-gray-700"
-                        }`}
-                    >
-                        <i className="fas fa-history mr-2"></i>
-                        History ({completedHistory.length})
-                    </button>
-                </div>
-
-                {/* Search Tab */}
-                {activeTab === "search" && (
-                    <>
-                        {/* Search Test Section */}
-                        {!testData && (
-                            <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
-                                <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
-                                    <i className="fas fa-search text-blue-600"></i>
-                                    Search Test by ID
-                                </h2>
-                                
-                                <div className="flex gap-3">
-                                    <input
-                                        type="text"
-                                        value={testId}
-                                        onChange={(e) => setTestId(e.target.value)}
-                                        placeholder="Enter Test ID (MongoDB _id)"
-                                        className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none"
-                                    />
-                                    <button
-                                        onClick={searchTest}
-                                        disabled={searching}
-                                        className="px-6 py-3 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-xl font-semibold hover:opacity-90 transition-all disabled:opacity-50"
-                                    >
-                                        {searching ? "Searching..." : "Search"}
-                                    </button>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-3">
-                                    Enter the Test ID provided by the doctor or patient
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="rounded-xl border border-[#eee9e3] bg-[#faf9f7] p-4">
+                                <p className={labelClass}>Laboratory ID</p>
+                                <p className="break-all text-sm font-semibold">
+                                    {labdetails.userid}
                                 </p>
                             </div>
-                        )}
+                            <div className="rounded-xl border border-[#eee9e3] bg-[#faf9f7] p-4">
+                                <p className={labelClass}>Registered address</p>
+                                <p className="text-sm font-semibold">
+                                    {labdetails.address || "Not provided"}
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+                )}
 
-                        {/* Test Details & Upload Section */}
-                        {testData && !testData.result && (
-                            <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6">
-                                <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
-                                    <i className="fas fa-vial text-amber-600"></i>
-                                    Upload Results for: {testData.type}
-                                </h2>
+                {/* Navigation tabs */}
+                <div className="mb-6 border-b border-[#e3ddd6]">
+                    <div className="flex gap-6 overflow-x-auto">
+                        <button
+                            onClick={() => setActiveTab("search")}
+                            className={navButtonClass("search")}
+                        >
+                            Upload Report
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("history")}
+                            className={navButtonClass("history")}
+                        >
+                            Completed History
+                            <span className="ml-2 rounded-full bg-[#eee9e3] px-2 py-0.5 text-xs">
+                                {completedHistory.length}
+                            </span>
+                        </button>
+                    </div>
+                </div>
 
-                                {/* Test Information */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
-                                    <div>
-                                        <label className="text-xs text-gray-500">Test Type</label>
-                                        <p className="font-medium text-gray-800">{testData.type}</p>
-                                    </div>
-                                    {testData.testid && (
-                                        <div>
-                                            <label className="text-xs text-gray-500">Test ID</label>
-                                            <p className="font-medium text-gray-800">{testData.testid}</p>
-                                        </div>
-                                    )}
+                {/* Search and upload */}
+                {activeTab === "search" && (
+                    <div className="space-y-6">
+                        {!testData ? (
+                            <section className={cardClass}>
+                                <div className="mb-6">
+                                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-[#8b1e2d]">
+                                        Step 01
+                                    </p>
+                                    <h2 className="text-xl font-bold">
+                                        Find a prescribed test
+                                    </h2>
+                                    <p className="mt-2 text-sm leading-6 text-gray-500">
+                                        Enter the unique Test ID provided by the
+                                        doctor to retrieve its details.
+                                    </p>
                                 </div>
 
-                                {/* Upload Form */}
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Test Results / Report URL <span className="text-red-500">*</span>
+                                <form
+                                    onSubmit={searchTest}
+                                    className="flex flex-col gap-3 sm:flex-row"
+                                >
+                                    <div className="flex-1">
+                                        <label className={labelClass}>
+                                            Test ID
                                         </label>
-                                        <textarea
-                                            name="result"
-                                            value={testResults.result}
-                                            onChange={handleResultChange}
-                                            rows="4"
-                                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none"
-                                            placeholder="Enter test results text or paste file URL here..."
+                                        <input
+                                            type="text"
+                                            value={testId}
+                                            onChange={(e) => setTestId(e.target.value)}
+                                            placeholder="Enter the patient's Test ID"
+                                            className={inputClass}
                                             required
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            You can either enter text results or paste a link to an uploaded file (PDF, image, etc.)
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        disabled={searching}
+                                        className={`${primaryButtonClass} self-end`}
+                                    >
+                                        {searching ? "Searching..." : "Search Test"}
+                                    </button>
+                                </form>
+                            </section>
+                        ) : (
+                            <section className={cardClass}>
+                                <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+                                    <div>
+                                        <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-[#8b1e2d]">
+                                            Step 02
+                                        </p>
+                                        <h2 className="text-xl font-bold">
+                                            Test Information
+                                        </h2>
+                                        <p className="mt-2 text-sm text-gray-500">
+                                            Verify the test details before uploading
+                                            its report.
                                         </p>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Additional Notes (Optional)
-                                        </label>
-                                        <textarea
-                                            name="notes"
-                                            value={testResults.notes}
-                                            onChange={handleResultChange}
-                                            rows="2"
-                                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none"
-                                            placeholder="Any additional notes or observations..."
-                                        />
-                                    </div>
+                                    <button
+                                        onClick={resetSearch}
+                                        className="rounded-xl border border-[#ded9d3] px-4 py-2.5 text-sm font-semibold hover:border-[#8b1e2d] hover:text-[#8b1e2d]"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
 
-                                    {/* Action Buttons */}
-                                    <div className="flex justify-end gap-3 mt-4">
-                                        <button
-                                            onClick={() => {
-                                                setTestData(null);
-                                                setTestId("");
-                                                setTestResults({ result: "", notes: "" });
-                                            }}
-                                            className="px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={uploadTestResult}
-                                            disabled={uploading}
-                                            className="px-6 py-3 bg-gradient-to-r from-amber-600 to-yellow-600 text-white rounded-xl font-semibold hover:opacity-90 transition-all disabled:opacity-50"
-                                        >
-                                            {uploading ? "Uploading..." : "Upload Results"}
-                                        </button>
+                                <div className="mb-7 grid gap-4 sm:grid-cols-2">
+                                    <div className="rounded-xl border border-[#eee9e3] bg-[#faf9f7] p-4">
+                                        <p className={labelClass}>Test type</p>
+                                        <p className="text-base font-bold">
+                                            {testData.type}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl border border-[#eee9e3] bg-[#faf9f7] p-4">
+                                        <p className={labelClass}>Test ID</p>
+                                        <p className="break-all text-sm font-semibold">
+                                            {testData.testid}
+                                        </p>
                                     </div>
                                 </div>
-                            </div>
-                        )}
 
-                        {/* Already Completed Message */}
-                        {testData && testData.result && (
-                            <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-12 text-center">
-                                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <i className="fas fa-check-circle text-3xl text-green-600"></i>
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-800 mb-2">Test Already Completed</h3>
-                                <p className="text-gray-600">This test has already been processed</p>
-                                <button
-                                    onClick={() => {
-                                        setTestData(null);
-                                        setTestId("");
-                                        setTestResults({ result: "", notes: "" });
-                                    }}
-                                    className="mt-4 px-6 py-2 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg font-semibold hover:opacity-90 transition-all"
-                                >
-                                    Search Another Test
-                                </button>
-                            </div>
+                                {testData.result ? (
+                                    <div className="rounded-xl border border-green-200 bg-green-50 p-5">
+                                        <p className="font-semibold text-green-800">
+                                            A report has already been uploaded
+                                        </p>
+                                        <a
+                                            href={testData.result}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="mt-3 inline-block text-sm font-semibold text-[#8b1e2d] underline"
+                                        >
+                                            View existing report
+                                        </a>
+                                    </div>
+                                ) : (
+                                    <form
+                                        onSubmit={uploadTestResult}
+                                        className="border-t border-[#eee9e3] pt-6"
+                                    >
+                                        <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-[#8b1e2d]">
+                                            Step 03
+                                        </p>
+                                        <h3 className="mb-5 text-lg font-bold">
+                                            Upload Test Report
+                                        </h3>
+
+                                        <div className="mb-5">
+                                            <label className={labelClass}>
+                                                Report file
+                                            </label>
+                                            <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#d9d0c8] bg-[#faf9f7] px-5 py-9 text-center transition hover:border-[#8b1e2d] hover:bg-[#8b1e2d]/[0.02]">
+                                                <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#8b1e2d]/10 text-2xl text-[#8b1e2d]">
+                                                    ↑
+                                                </span>
+                                                <span className="text-sm font-semibold">
+                                                    {selectedFile
+                                                        ? selectedFile.name
+                                                        : "Choose a report from your device"}
+                                                </span>
+                                                <span className="mt-2 text-xs text-gray-500">
+                                                    PDF or image file
+                                                </span>
+                                                <input
+                                                    type="file"
+                                                    accept=".pdf,image/*"
+                                                    className="hidden"
+                                                    onChange={(e) =>
+                                                        setSelectedFile(
+                                                            e.target.files?.[0] || null
+                                                        )
+                                                    }
+                                                />
+                                            </label>
+
+                                            {selectedFile && (
+                                                <p className="mt-2 text-xs text-gray-500">
+                                                    File size:{" "}
+                                                    {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div className="mb-6">
+                                            <label className={labelClass}>
+                                                Additional notes (optional)
+                                            </label>
+                                            <textarea
+                                                value={notes}
+                                                onChange={(e) => setNotes(e.target.value)}
+                                                rows={3}
+                                                placeholder="Enter relevant observations..."
+                                                className={inputClass}
+                                            />
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={resetSearch}
+                                                disabled={uploading}
+                                                className="rounded-xl border border-[#ded9d3] px-5 py-3 text-sm font-semibold hover:bg-[#faf9f7] disabled:opacity-50"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={uploading || !selectedFile}
+                                                className={primaryButtonClass}
+                                            >
+                                                {uploading
+                                                    ? "Uploading report..."
+                                                    : "Upload Report"}
+                                            </button>
+                                        </div>
+                                    </form>
+                                )}
+                            </section>
                         )}
-                    </>
+                    </div>
                 )}
 
-                {/* History Tab */}
+                {/* History */}
                 {activeTab === "history" && (
-                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-6">
-                        <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2 mb-6">
-                            <i className="fas fa-history text-green-600"></i>
-                            Completed Tests History ({completedHistory.length})
-                        </h2>
-                        
-                        {completedHistory.length > 0 ? (
-                            <div className="space-y-4">
+                    <section className={cardClass}>
+                        <div className="mb-6">
+                            <p className="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-[#8b1e2d]">
+                                Lab records
+                            </p>
+                            <h2 className="text-xl font-bold">
+                                Completed Test History
+                            </h2>
+                            <p className="mt-2 text-sm text-gray-500">
+                                Reports previously uploaded by this laboratory.
+                            </p>
+                        </div>
+
+                        {completedHistory.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-[#ded9d3] py-12 text-center">
+                                <p className="font-semibold">
+                                    No completed tests yet
+                                </p>
+                                <p className="mt-2 text-sm text-gray-500">
+                                    Uploaded reports will appear here.
+                                </p>
+                                <button
+                                    onClick={() => setActiveTab("search")}
+                                    className="mt-5 text-sm font-semibold text-[#8b1e2d] hover:underline"
+                                >
+                                    Find a test
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
                                 {completedHistory.map((item, index) => (
-                                    <div key={index} className="border border-gray-200 rounded-xl overflow-hidden">
-                                        <div 
-                                            className="bg-gradient-to-r from-gray-50 to-white p-4 cursor-pointer hover:bg-gray-100 transition-colors flex justify-between items-center"
-                                            onClick={() => toggleHistoryTest(index)}
+                                    <div
+                                        key={item.testid || index}
+                                        className="overflow-hidden rounded-xl border border-[#e7e2dc]"
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => setExpandedTest(
+                                                expandedTest === index ? null : index
+                                            )}
+                                            className="flex w-full flex-wrap items-center justify-between gap-4 p-4 text-left transition hover:bg-[#faf9f7] sm:p-5"
                                         >
-                                            <div className="flex items-center gap-4">
-                                                <i className={`fas fa-chevron-${expandedTest === index ? 'down' : 'right'} text-gray-400`}></i>
-                                                <div>
-                                                    <p className="font-semibold text-gray-800">Patient: {item.patientid}</p>
-                                                    <p className="text-sm text-gray-600">Test: {item.testType}</p>
-                                                </div>
+                                            <div>
+                                                <p className="font-semibold">
+                                                    {item.testType}
+                                                </p>
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    Patient ID: {item.patientid}
+                                                </p>
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    Test ID: {item.testid || "N/A"}
+                                                </p>
                                             </div>
+
                                             <div className="flex items-center gap-3">
-                                                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                                <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
                                                     Completed
                                                 </span>
-                                                <span className="text-xs text-gray-500">
-                                                    {item.completedAt ? new Date(item.completedAt).toLocaleDateString() : 'N/A'}
+                                                <span className="text-gray-400">
+                                                    {expandedTest === index ? "−" : "+"}
                                                 </span>
                                             </div>
-                                        </div>
-                                        
+                                        </button>
+
                                         {expandedTest === index && (
-                                            <div className="p-4 bg-gray-50 border-t border-gray-200">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                            <div className="space-y-4 border-t border-[#e7e2dc] bg-[#faf9f7] p-4 sm:p-5">
+                                                <div className="grid gap-4 sm:grid-cols-2">
                                                     <div>
-                                                        <p className="text-xs text-gray-500">Diagnosis ID</p>
-                                                        <p className="text-sm font-medium text-gray-800">{item.diagnosisid}</p>
+                                                        <p className={labelClass}>
+                                                            Doctor ID
+                                                        </p>
+                                                        <p className="break-all text-sm font-medium">
+                                                            {item.doctorid || "N/A"}
+                                                        </p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-xs text-gray-500">Doctor ID</p>
-                                                        <p className="text-sm font-medium text-gray-800">{item.doctorid}</p>
+                                                        <p className={labelClass}>
+                                                            Diagnosis ID
+                                                        </p>
+                                                        <p className="break-all text-sm font-medium">
+                                                            {item.diagnosisid || "N/A"}
+                                                        </p>
                                                     </div>
-                                                    {item.testid && (
-                                                        <div>
-                                                            <p className="text-xs text-gray-500">Test ID</p>
-                                                            <p className="text-sm font-medium text-gray-800">{item.testid}</p>
-                                                        </div>
-                                                    )}
                                                 </div>
-                                                
-                                                <div className="mt-3">
-                                                    <p className="text-xs text-gray-500 mb-1">Test Results / Report</p>
-                                                    <div className="bg-white rounded-lg p-3">
-                                                        {item.result && (
-                                                            <div className="mb-2">
-                                                                {item.result.startsWith('http') ? (
-                                                                    <a 
-                                                                        href={item.result} 
-                                                                        target="_blank" 
-                                                                        rel="noopener noreferrer"
-                                                                        className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-700"
-                                                                    >
-                                                                        <i className="fas fa-file-pdf"></i>
-                                                                        View Report
-                                                                    </a>
-                                                                ) : (
-                                                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{item.result}</p>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                        {item.notes && (
-                                                            <div className="mt-2 pt-2 border-t border-gray-200">
-                                                                <p className="text-xs text-gray-500 mb-1">Additional Notes:</p>
-                                                                <p className="text-sm text-gray-600">{item.notes}</p>
-                                                            </div>
-                                                        )}
+
+                                                {item.result && (
+                                                    <div>
+                                                        <p className={labelClass}>
+                                                            Uploaded report
+                                                        </p>
+                                                        <a
+                                                            href={item.result}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-sm font-semibold text-[#8b1e2d] underline"
+                                                        >
+                                                            View report
+                                                        </a>
                                                     </div>
+                                                )}
+
+                                                {item.notes && (
+                                                    <div>
+                                                        <p className={labelClass}>
+                                                            Additional notes
+                                                        </p>
+                                                        <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700">
+                                                            {item.notes}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                <div>
+                                                    <p className={labelClass}>
+                                                        Completed date
+                                                    </p>
+                                                    <p className="text-sm font-medium">
+                                                        {item.completedAt
+                                                            ? new Date(item.completedAt).toLocaleDateString()
+                                                            : "N/A"}
+                                                    </p>
                                                 </div>
                                             </div>
                                         )}
                                     </div>
                                 ))}
                             </div>
-                        ) : (
-                            <div className="text-center py-12">
-                                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <i className="fas fa-flask text-3xl text-gray-400"></i>
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-800 mb-2">No Completed Tests Yet</h3>
-                                <p className="text-gray-600">Uploaded test results will appear here</p>
-                            </div>
                         )}
-                    </div>
+                    </section>
                 )}
             </main>
         </div>

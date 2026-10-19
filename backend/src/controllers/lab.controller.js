@@ -45,8 +45,6 @@ export const getLab = async (req, res) => {
 
 export const verifyTest=async(req,res)=>{
     try{
-        console.log("Query:", req.query);
-        console.log("Test ID:", req.query.testid);
         const testid= req.query.testid;
         const test= await Diagnosis.findOne(
             {"tests.testid":testid},
@@ -88,24 +86,34 @@ export const uploadResults = async (req, res) => {
 
 export const getHistory = async (req, res) => {
     try {
-        const diagnoses = await Diagnosis.find({ "tests.labid": req.user.userid })
-        const tests = []
-        diagnoses.forEach(diagnosis => {
-            diagnosis.tests.forEach(test => {
-                tests.push({
-                    diagnosisid: diagnosis._id,
-                    patientid: diagnosis.patientid,
-                    doctorid: diagnosis.doctorid,
-                    testType: test.type,
-                    testid: test.testid,
-                    result: test.result,
-                    notes: test.notes,
-                    completedAt: test.completedAt
-                })
-            })
-        })
-        res.status(200).json(tests)
+        const labId = req.user.userid;
+
+        const diagnoses = await Diagnosis.find({
+            "tests.labid": labId
+        });
+
+        const tests = [];
+
+        diagnoses.forEach((diagnosis) => {
+            diagnosis.tests.forEach((test) => {
+                // Only include tests assigned to this lab
+                if (test.labid === labId) {
+                    tests.push({
+                        diagnosisid: diagnosis._id,
+                        patientid: diagnosis.patientid,
+                        doctorid: diagnosis.doctorid,
+                        testType: test.type,
+                        testid: test.testid,
+                        result: test.result,
+                        notes: test.notes,
+                        completedAt: diagnosis.updatedAt
+                    });
+                }
+            });
+        });
+
+        res.status(200).json(tests);
     } catch (err) {
-        res.status(500).json({ message: err.message })
+        res.status(500).json({ message: err.message });
     }
-}
+};
